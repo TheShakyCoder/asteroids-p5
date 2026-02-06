@@ -15,6 +15,7 @@ import {
 import { MyRoom } from "./rooms/MyRoom.js";
 import { ships } from "./data/ships.js";
 import { factions } from "./data/factions.js";
+import { weapons } from "./data/weapons.js";
 
 const server = defineServer({
     /**
@@ -63,7 +64,17 @@ const server = defineServer({
         }),
 
         api_ships: createEndpoint("/api/ships", { method: "GET" }, async (ctx) => {
-            return ships;
+            // Merge ship weapons with full weapon data for the client
+            return ships.map(ship => ({
+                ...ship,
+                weapons: ship.weapons.map(sw => {
+                    const weaponData = weapons.find(w => w.id === sw.weapon);
+                    return {
+                        ...sw,
+                        weapon: weaponData || { name: "Unknown Weapon" }
+                    };
+                })
+            }));
         })
     }),
 

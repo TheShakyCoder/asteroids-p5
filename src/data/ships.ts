@@ -16,13 +16,7 @@ export const ships = [
     },
     weapons: [
         {
-            weapon: {
-              name: "Light Plasma Rifle",
-              damage: 10,
-              fireRate: 10,
-              fieldOfView: 95,
-              range: 800
-            },
+            weapon: 'light-plasma-rifle',
             mount: {
                 left: 5,
                 front: 5,
@@ -39,13 +33,7 @@ export const ships = [
     stats: { speed: 5, armor: 40, hull: 200, weaponRadius: 5, angularVelocity: 30, acceleration: 0.3, maxVelocity: 7, lateralDamping: 0.08 },
     weapons: [
         {
-            weapon: {
-              name: "Medium Plasma Rifle",
-              damage: 20,
-              fireRate: 4,
-              fieldOfView: 45,
-              range: 1000
-            },
+            weapon: 'medium-plasma-rifle',
             mount: {
                 left: 15,
                 front: 15,
@@ -62,13 +50,7 @@ export const ships = [
     stats: { speed: 3, armor: 60, hull: 400, weaponRadius: 10, angularVelocity: 15, acceleration: 0.2, maxVelocity: 4, lateralDamping: 0.04 },
     weapons: [
         {
-            weapon: {
-              name: "Heavy Plasma Rifle",
-              damage: 30,
-              fireRate: 2,
-              fieldOfView: 95,
-              range: 1200
-            },
+            weapon: 'heavy-plasma-rifle',
             mount: {
                 left: 25,
                 front: 0,
