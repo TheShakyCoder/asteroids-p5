@@ -44,7 +44,8 @@ export class MyRoom extends Room {
       const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
       const maxSpeed = shipSpec.stats.speed * 1.5;
       const acceleration = shipSpec.stats.speed * 0.1;
-      const rotationSpeed = 0.05;
+      // Convert deg/sec to rad/tick: (degrees * PI/180) * (deltaTime in seconds)
+      const rotationSpeed = (shipSpec.stats.angularVelocity || 90) * (Math.PI / 180) * (deltaTime / 1000);
       const friction = 0.98;
 
       // Update angle
