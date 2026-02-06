@@ -4,7 +4,15 @@ export const ships = [
     name: "Interceptor",
     class: "Small",
     description: "Fast and agile. Ideal for hit-and-run tactics.",
-    stats: { speed: 8, armor: 20, hull: 100, weaponRadius: 2, angularVelocity: 60, acceleration: 1.0, maxVelocity: 12 },
+    stats: { 
+        speed: 8, 
+        armor: 20, 
+        hull: 100, 
+        weaponRadius: 2, 
+        angularVelocity: 60, 
+        acceleration: 1.0, 
+        maxVelocity: 15 
+    },
     weapons: [
         {
             weapon: {
