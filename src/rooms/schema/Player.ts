@@ -7,7 +7,15 @@ export class Player extends Schema {
   @type("number") x: number;
   @type("number") y: number;
   @type("number") angle: number = 0;
+  @type("number") vx: number = 0;
+  @type("number") vy: number = 0;
   @type("number") hull: number;
   @type("number") armor: number;
   @type("number") weaponRadius: number;
+
+  // Diagnostic properties
+  @type("number") heartbeat: number = 0;
+  
+  // Input states (not synchronized directly via schema for efficiency, handled manually)
+  input = { w: false, a: false, s: false, d: false };
 }
