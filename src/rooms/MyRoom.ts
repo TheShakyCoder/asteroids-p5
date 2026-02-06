@@ -42,24 +42,34 @@ export class MyRoom extends Room {
       player.heartbeat++;
       // Find ship stats for this player
       const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
-      const maxSpeed = shipSpec.stats.speed * 1.5;
-      const acceleration = shipSpec.stats.speed * 0.1;
+      const maxSpeed = shipSpec.stats.maxVelocity || 10;
+      const acceleration = shipSpec.stats.acceleration || 0.5;
       // Convert deg/sec to rad/tick: (degrees * PI/180) * (deltaTime in seconds)
       const rotationSpeed = (shipSpec.stats.angularVelocity || 90) * (Math.PI / 180) * (deltaTime / 1000);
-      const friction = 0.98;
+      const friction = 1.0; // Space is a vacuum; no passive friction. Only S (brakes) will slow you down.
 
       // Update angle
       if (player.input.a) player.angle -= rotationSpeed;
       if (player.input.d) player.angle += rotationSpeed;
 
+      const facingX = Math.sin(player.angle);
+      const facingY = -Math.cos(player.angle);
+
       // Update velocity
       if (player.input.w) {
-        player.vx += Math.sin(player.angle) * acceleration;
-        player.vy -= Math.cos(player.angle) * acceleration;
+        player.vx += facingX * acceleration;
+        player.vy += facingY * acceleration;
       }
+      
       if (player.input.s) {
-        player.vx -= Math.sin(player.angle) * (acceleration * 0.5);
-        player.vy += Math.cos(player.angle) * (acceleration * 0.5);
+        // "S" acts as a brake. Project velocity onto facing vector to see current forward momentum.
+        const dot = player.vx * facingX + player.vy * facingY;
+        if (dot > 0) {
+          // Subtract forward momentum, but don't cross into "reverse" (dot < 0)
+          const brakingForce = Math.min(acceleration * 1.5, dot);
+          player.vx -= facingX * brakingForce;
+          player.vy -= facingY * brakingForce;
+        }
       }
 
       // Apply friction
