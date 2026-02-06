@@ -5,6 +5,7 @@
     "": {
       "name": "my-app",
       "dependencies": {
+        "@colyseus/bun-websockets": "^0.17.7",
         "@colyseus/schema": "^4.0.0",
         "@colyseus/tools": "^0.17.0",
         "colyseus": "^0.17.6",
@@ -31,6 +32,8 @@
     "@colyseus/auth": ["@colyseus/auth@0.17.6", "", { "dependencies": { "@types/jsonwebtoken": "^9.0.5", "connect-redis": "^7.1.0", "express-jwt": "^8.5.1", "express-session": "^1.17.3", "grant": "^5.4.24", "jsonwebtoken": "^9.0.0" }, "peerDependencies": { "@colyseus/core": "0.17.x", "express": ">=4.16.0" } }, "sha512-38YSyNLcIddRgmKSIVgCC+fSoOO1N3Ul+77xB0VsxaAoACC+qIOE6vtwe0ThJr+583s7wyc7R+oAEtaUYZ73Zw=="],
 
     "@colyseus/better-call": ["@colyseus/better-call@1.2.1", "", { "dependencies": { "@better-auth/utils": "^0.3.0", "@better-fetch/fetch": "^1.1.4", "rou3": "^0.7.10", "set-cookie-parser": "^2.7.1" }, "peerDependencies": { "zod": "^4.0.0" }, "optionalPeers": ["zod"] }, "sha512-NFHYQ4TqOJgkKzEvPIaMKusoXX6CXsQSmBpugz3OWg4LBLXNxRRjI73BtfwPBjm/Ply4y5063CXuW+EgArQwlg=="],
+
+    "@colyseus/bun-websockets": ["@colyseus/bun-websockets@0.17.7", "", { "dependencies": { "@colyseus/core": "^0.17.30" } }, "sha512-qzIUifJQHOZc9JCR+936YIE+nQgUr0LjC42vMU0rGWIXUbI7iTo4mt/FMkPWc5ovx/Ju6SKOB2NSSHRYrwNwYA=="],
 
     "@colyseus/clock": ["@colyseus/clock@2.0.3", "", {}, "sha512-kziqG0dcGsvSfcerHLZTY1V2PmGnZAdG5DM0T5BKQDAiYBXYoMqfzA1Wxfe3KSnyeZuP99isffkUQLEwpFYF7A=="],
 
