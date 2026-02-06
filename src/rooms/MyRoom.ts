@@ -111,14 +111,25 @@ export class MyRoom extends Room {
         player.vy += facingY * acceleration;
       }
       
+      // 1. Sideways (Lateral) Damping: reduces "icy" sliding.
+      // High-speed interceptors feel this drift most when turning.
+      const lateralDamping = shipSpec.stats.lateralDamping || 0.05; 
+      const rightX = -facingY;
+      const rightY = facingX;
+      const lateralVel = player.vx * rightX + player.vy * rightY;
+      player.vx -= rightX * lateralVel * lateralDamping;
+      player.vy -= rightY * lateralVel * lateralDamping;
+
+      // 2. Braking (S key)
       if (player.input.s) {
-        // "S" acts as a brake. Project velocity onto facing vector to see current forward momentum.
-        const dot = player.vx * facingX + player.vy * facingY;
-        if (dot > 0) {
-          // Subtract forward momentum, but don't cross into "reverse" (dot < 0)
-          const brakingForce = Math.min(acceleration * 1.5, dot);
-          player.vx -= facingX * brakingForce;
-          player.vy -= facingY * brakingForce;
+        // Brake all momentum, not just forward.
+        const brakingForce = acceleration * 1.5; // Reduced from 3x to 1.5x
+        const currentSpeed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+        if (currentSpeed > 0) {
+          const reduction = Math.min(brakingForce, currentSpeed);
+          const ratio = (currentSpeed - reduction) / currentSpeed;
+          player.vx *= ratio;
+          player.vy *= ratio;
         }
       }
 
