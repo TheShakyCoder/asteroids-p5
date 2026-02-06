@@ -27,6 +27,49 @@ export class MyRoom extends Room {
       }
     });
 
+    this.onMessage("target-enemy", (client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      let nearest: Player | null = null;
+      let minDist = Infinity;
+
+      this.state.players.forEach((other) => {
+        if (other.id === client.sessionId) return;
+        if (other.faction === player.faction) return;
+
+        const dist = Math.sqrt((other.x - player.x) ** 2 + (other.y - player.y) ** 2);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = other;
+        }
+      });
+
+      player.targetId = nearest ? nearest.id : "";
+      console.log(`Player ${client.sessionId} targeting ${player.targetId || 'NOTHING'}`);
+    });
+
+    this.onMessage("target-object", (client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      // Currently only players exist, so target nearest player (enemy or neutral)
+      let nearest: Player | null = null;
+      let minDist = Infinity;
+
+      this.state.players.forEach((other) => {
+        if (other.id === client.sessionId) return;
+
+        const dist = Math.sqrt((other.x - player.x) ** 2 + (other.y - player.y) ** 2);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = other;
+        }
+      });
+
+      player.targetId = nearest ? nearest.id : "";
+    });
+
     this.onMessage("input", (client, input) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {
