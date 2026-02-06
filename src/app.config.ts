@@ -5,6 +5,7 @@ import {
     playground,
     createRouter,
     createEndpoint,
+    matchMaker,
 } from "colyseus";
 
 /**
@@ -30,6 +31,27 @@ const server = defineServer({
     routes: createRouter({
         api_hello: createEndpoint("/api/hello", { method: "GET", }, async (ctx) => {
             return { message: "Hello World" }
+        }),
+
+        api_rooms: createEndpoint("/api/rooms", { method: "GET" }, async (ctx) => {
+            return await matchMaker.query({});
+        }),
+
+        api_create_room: createEndpoint("/api/rooms", { method: "POST" }, async (ctx) => {
+            const options = ctx.body || {};
+            const room = await matchMaker.createRoom("my_room", options);
+            return room;
+        }),
+
+        api_delete_room: createEndpoint("/api/rooms/:id", { method: "DELETE" }, async (ctx) => {
+            const roomId = ctx.params.id;
+            const roomInstance = matchMaker.getLocalRoomById(roomId);
+            if (roomInstance) {
+                await roomInstance.disconnect();
+                return { success: true };
+            } else {
+                return { success: false, error: "Room not found or not active on this node." };
+            }
         })
     }),
 
