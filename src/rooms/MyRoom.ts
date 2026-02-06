@@ -3,6 +3,7 @@ import { MyRoomState } from "./schema/MyRoomState.js";
 import { Player } from "./schema/Player.js";
 import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
+import { weapons } from "../data/weapons.js";
 
 export class MyRoom extends Room {
   maxClients = 4;
@@ -88,6 +89,7 @@ export class MyRoom extends Room {
     const worldHalfWidth = this.state.width / 2;
     const worldHalfHeight = this.state.height / 2;
 
+    this.state.serverTime = Date.now();
     this.state.players.forEach((player) => {
       player.heartbeat++;
       // Find ship stats for this player
@@ -153,6 +155,55 @@ export class MyRoom extends Room {
       if (player.x > worldHalfWidth) player.x = -worldHalfWidth;
       if (player.y < -worldHalfHeight) player.y = worldHalfHeight;
       if (player.y > worldHalfHeight) player.y = -worldHalfHeight;
+
+      // 3. WEAPON FIRING LOGIC
+      if (player.targetId && shipSpec.weapons) {
+        const target = this.state.players.get(player.targetId);
+        if (target) {
+          shipSpec.weapons.forEach((sw, i) => {
+            if (!player.weaponSlots[i]) return;
+
+            const weaponDef = weapons.find(w => w.id === sw.weapon);
+            if (!weaponDef) return;
+
+            const now = this.state.serverTime;
+            const lastFire = player.weaponLastFire.get(i.toString()) || 0;
+
+            if (now - lastFire >= weaponDef.fireDelay) {
+              // Calculate world muzzle position
+              const shipAngle = player.angle || 0;
+              const cosA = Math.cos(shipAngle);
+              const sinA = Math.sin(shipAngle);
+              const mX = -sw.mount.left;
+              const mY = -sw.mount.front;
+              const muzzleWorldX = player.x + (mX * cosA - mY * sinA);
+              const muzzleWorldY = player.y + (mX * sinA + mY * cosA);
+
+              // Distance check
+              const dx = target.x - muzzleWorldX;
+              const dy = target.y - muzzleWorldY;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (dist <= weaponDef.range) {
+                // Angle check
+                const weaponWorldAngle = shipAngle + (sw.mount.rotation * Math.PI / 180) - (Math.PI / 2);
+                const angleToTarget = Math.atan2(dy, dx);
+                
+                let angleDiff = angleToTarget - weaponWorldAngle;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+                const halfFovRad = (weaponDef.fieldOfView / 2) * Math.PI / 180;
+                if (Math.abs(angleDiff) <= halfFovRad) {
+                  // FIRE!
+                  player.weaponLastFire.set(i.toString(), now);
+                  // TODO: Apply damage here if desired
+                }
+              }
+            }
+          });
+        }
+      }
     });
   }
 
@@ -172,9 +223,12 @@ export class MyRoom extends Room {
     player.armor = shipSpec.stats.armor;
     player.weaponRadius = shipSpec.stats.weaponRadius;
     
-    // Initialize weapon slots
+    // Initialize weapon states
     if (shipSpec.weapons) {
-       shipSpec.weapons.forEach(() => player.weaponSlots.push(true));
+       shipSpec.weapons.forEach((_, i) => {
+         player.weaponSlots.push(true);
+         player.weaponLastFire.set(i.toString(), 0);
+       });
     }
     
     this.state.players.set(client.sessionId, player);

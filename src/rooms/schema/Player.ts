@@ -1,4 +1,4 @@
-import { Schema, type } from "@colyseus/schema";
+import { Schema, type, MapSchema } from "@colyseus/schema";
 
 export class Player extends Schema {
   @type("string") id: string;
@@ -13,6 +13,7 @@ export class Player extends Schema {
   @type("number") armor: number;
   @type("number") weaponRadius: number;
   @type(["boolean"]) weaponSlots: boolean[] = [];
+  @type({ map: "number" }) weaponLastFire = new MapSchema<number>();
   @type("string") targetId: string = "";
 
   // Diagnostic properties
