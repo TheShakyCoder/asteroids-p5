@@ -38,6 +38,7 @@ export class MyRoom extends Room {
     player.y = faction.spawn.y;
     player.hull = shipSpec.stats.hull;
     player.armor = shipSpec.stats.armor;
+    player.weaponRadius = shipSpec.stats.weaponRadius;
     
     this.state.players.set(client.sessionId, player);
   }

@@ -6,6 +6,7 @@ import {
     createRouter,
     createEndpoint,
     matchMaker,
+    LobbyRoom,
 } from "colyseus";
 
 /**
@@ -20,7 +21,8 @@ const server = defineServer({
      * Define your room handlers:
      */
     rooms: {
-        my_room: defineRoom(MyRoom)
+        lobby: defineRoom(LobbyRoom),
+        my_room: defineRoom(MyRoom).enableRealtimeListing()
     },
 
     /**

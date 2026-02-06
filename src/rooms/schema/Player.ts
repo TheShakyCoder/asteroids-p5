@@ -9,4 +9,5 @@ export class Player extends Schema {
   @type("number") angle: number = 0;
   @type("number") hull: number;
   @type("number") armor: number;
+  @type("number") weaponRadius: number;
 }
