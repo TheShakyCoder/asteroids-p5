@@ -69,6 +69,32 @@ const server = defineServer({
                     color: "#ff3b30"
                 }
             ];
+        }),
+
+        api_ships: createEndpoint("/api/ships", { method: "GET" }, async (ctx) => {
+            return [
+                {
+                    id: "interceptor",
+                    name: "Interceptor",
+                    class: "Small",
+                    description: "Fast and agile. Ideal for hit-and-run tactics.",
+                    stats: { speed: 8, armor: 3, fireRate: 6 }
+                },
+                {
+                    id: "assault",
+                    name: "Assault",
+                    class: "Medium",
+                    description: "Well-rounded combat vessel with balanced protection and firepower.",
+                    stats: { speed: 5, armor: 6, fireRate: 7 }
+                },
+                {
+                    id: "support",
+                    name: "Support",
+                    class: "Large",
+                    description: "Heavy armor and sustained fire. Built to hold the line.",
+                    stats: { speed: 3, armor: 9, fireRate: 5 }
+                }
+            ];
         })
     }),
 
