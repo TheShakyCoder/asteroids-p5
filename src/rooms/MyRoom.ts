@@ -4,6 +4,7 @@ import { Player } from "./schema/Player.js";
 import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
 import { weapons } from "../data/weapons.js";
+import { calculateHit } from "../utils/combat.js";
 
 export class MyRoom extends Room {
   maxClients = 4;
@@ -197,7 +198,20 @@ export class MyRoom extends Room {
                 if (Math.abs(angleDiff) <= halfFovRad) {
                   // FIRE!
                   player.weaponLastFire.set(i.toString(), now);
-                  // TODO: Apply damage here if desired
+                  
+                  // APPLY DAMAGE
+                  const hitResult = calculateHit({
+                    baseDamage: weaponDef.damage,
+                    armor: target.armor,
+                    armorPiercing: weaponDef.armorPiercing || 0
+                  });
+
+                  target.hull -= hitResult.finalHullDamage;
+                  console.log(`Player ${player.id} hit ${target.id} for ${hitResult.finalHullDamage} damage. Target hull: ${target.hull}`);
+
+                  if (target.hull <= 0) {
+                    this.respawnPlayer(target);
+                  }
                 }
               }
             }
@@ -205,6 +219,20 @@ export class MyRoom extends Room {
         }
       }
     });
+  }
+
+  respawnPlayer(player: Player) {
+    console.log(`Player ${player.id} destroyed! Respawning...`);
+    const faction = factions.find(f => f.id === player.faction) || factions[0];
+    const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
+
+    player.x = faction.spawn.x + (Math.random() * 200 - 100);
+    player.y = faction.spawn.y + (Math.random() * 200 - 100);
+    player.vx = 0;
+    player.vy = 0;
+    player.hull = shipSpec.stats.hull;
+    player.armor = shipSpec.stats.armor;
+    player.targetId = "";
   }
 
   onJoin (client: Client, options: any) {
