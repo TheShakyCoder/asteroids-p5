@@ -18,6 +18,7 @@ export class MyRoom extends Room {
     /**
      * Called when a new room is created.
      */
+    console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
   }
 
   onJoin (client: Client, options: any) {
