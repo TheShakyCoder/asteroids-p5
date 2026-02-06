@@ -12,6 +12,7 @@ export class Player extends Schema {
   @type("number") hull: number;
   @type("number") armor: number;
   @type("number") weaponRadius: number;
+  @type(["boolean"]) weaponSlots: boolean[] = [];
 
   // Diagnostic properties
   @type("number") heartbeat: number = 0;

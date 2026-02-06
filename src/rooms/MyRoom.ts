@@ -20,6 +20,13 @@ export class MyRoom extends Room {
   onCreate (options: any) {
     console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
     
+    this.onMessage("toggle-weapon", (client, index: number) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player && player.weaponSlots[index] !== undefined) {
+        player.weaponSlots[index] = !player.weaponSlots[index];
+      }
+    });
+
     this.onMessage("input", (client, input) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {
@@ -110,6 +117,11 @@ export class MyRoom extends Room {
     player.hull = shipSpec.stats.hull;
     player.armor = shipSpec.stats.armor;
     player.weaponRadius = shipSpec.stats.weaponRadius;
+    
+    // Initialize weapon slots
+    if (shipSpec.weapons) {
+       shipSpec.weapons.forEach(() => player.weaponSlots.push(true));
+    }
     
     this.state.players.set(client.sessionId, player);
   }
