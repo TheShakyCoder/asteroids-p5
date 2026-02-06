@@ -52,6 +52,23 @@ const server = defineServer({
             } else {
                 return { success: false, error: "Room not found or not active on this node." };
             }
+        }),
+
+        api_factions: createEndpoint("/api/factions", { method: "GET" }, async (ctx) => {
+            return [
+                {
+                    id: "humans",
+                    name: "Terran Union",
+                    description: "Adaptable and resilient survivors from Earth. Balanced ship stats.",
+                    color: "#4facfe"
+                },
+                {
+                    id: "martians",
+                    name: "Martian Sovereignty",
+                    description: "Advanced technological society from the Red Planet. Higher speed and maneuverability.",
+                    color: "#ff3b30"
+                }
+            ];
         })
     }),
 
