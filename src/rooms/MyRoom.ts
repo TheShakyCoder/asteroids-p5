@@ -35,6 +35,7 @@ export class MyRoom extends Room {
       station.width = 500;
       station.height = 70;
       station.angle = 0; // Stationary for now
+      station.droneNextWaveTime = Date.now(); // Start first wave immediately
       this.state.stations.set(station.id, station);
     });
 
@@ -334,7 +335,7 @@ export class MyRoom extends Room {
 
       // Seeking logic
       if (proj.type === "missile" && proj.targetId) {
-        const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId);
+        const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId) || this.state.projectiles.get(proj.targetId);
         if (target) {
           const dx = (target as any).x - proj.x;
           const dy = (target as any).y - proj.y;
@@ -362,7 +363,7 @@ export class MyRoom extends Room {
 
       // Collision check
       if (proj.targetId) {
-        const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId);
+        const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId) || this.state.projectiles.get(proj.targetId);
         if (target) {
           const dx = (target as any).x - proj.x;
           const dy = (target as any).y - proj.y;
@@ -380,6 +381,8 @@ export class MyRoom extends Room {
             if ((target as any).hull <= 0) {
               if (this.state.players.has(proj.targetId)) {
                 this.respawnPlayer(target as any);
+              } else if (this.state.projectiles.has(proj.targetId)) {
+                this.state.projectiles.delete(proj.targetId);
               } else {
                 // Station destroyed? Reset hull
                 const station = target as Station;
@@ -418,8 +421,8 @@ export class MyRoom extends Room {
         const reloadMs = reload * 1000;
 
         if (now - lastFire >= reloadMs) {
-          // Find nearest enemy player
-          let nearest: Player | null = null;
+          // Find nearest enemy player or drone
+          let nearest: any = null;
           let minDist = Infinity;
 
           this.state.players.forEach((p) => {
@@ -428,6 +431,15 @@ export class MyRoom extends Room {
             if (dist < minDist) {
               minDist = dist;
               nearest = p;
+            }
+          });
+
+          this.state.projectiles.forEach((proj) => {
+            if (proj.type !== "drone" || proj.faction === station.faction) return;
+            const dist = Math.sqrt((proj.x - (station.x + tw.x)) ** 2 + (proj.y - (station.y + tw.y)) ** 2);
+            if (dist < minDist) {
+              minDist = dist;
+              nearest = proj;
             }
           });
 
@@ -458,11 +470,17 @@ export class MyRoom extends Room {
                 const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
                 const hitResult = calculateHit({
                   baseDamage: baseDmg,
-                  armor: nearest.armor,
+                  armor: (nearest as any).armor || 0,
                   armorPiercing: weaponDef.armorPiercing as any || 0
                 });
                 nearest.hull -= hitResult.finalHullDamage;
-                if (nearest.hull <= 0) this.respawnPlayer(nearest);
+                if (nearest.hull <= 0) {
+                  if (this.state.players.has((nearest as any).id)) {
+                    this.respawnPlayer(nearest);
+                  } else {
+                    this.state.projectiles.delete((nearest as any).id);
+                  }
+                }
               }
             } else {
               // SPAWN MISSILE
@@ -492,6 +510,62 @@ export class MyRoom extends Room {
           }
         }
       });
+
+      // --- DRONE SWARM LOGIC ---
+      const now = this.state.serverTime;
+      if (now >= station.droneNextWaveTime) {
+        station.droneSpawnsRemaining = 6;
+        station.droneNextWaveTime = now + 60000; // Next wave in 1 minute
+        station.droneNextSpawnTime = now;
+      }
+
+      if (station.droneSpawnsRemaining > 0 && now >= station.droneNextSpawnTime) {
+        // Find opposite station
+        let targetStation: Station | null = null;
+        this.state.stations.forEach((other) => {
+          if (other.faction !== station.faction) {
+            targetStation = other;
+          }
+        });
+
+        if (targetStation) {
+          station.droneSpawnsRemaining--;
+          station.droneNextSpawnTime = now + 1000; // 1 second apart
+
+          const drone = new Projectile();
+          drone.id = `drone_${station.id}_${Date.now()}_${station.droneSpawnsRemaining}`;
+          drone.type = "drone";
+          drone.faction = station.faction;
+          drone.ownerId = station.id;
+          drone.targetId = (targetStation as any).id;
+          
+          // Spawn at random edge of station
+          const side = Math.random() > 0.5 ? 1 : -1;
+          drone.x = station.x + (side * (station.width / 2 + 50));
+          drone.y = station.y + (Math.random() - 0.5) * station.height;
+          
+          // Face target
+          const dx = targetStation.x - drone.x;
+          const dy = targetStation.y - drone.y;
+          drone.angle = Math.atan2(dy, dx) + Math.PI / 2;
+          
+          drone.speed = 1.0; // Slow travel
+          drone.acceleration = 0;
+          drone.maxSpeed = 1.0;
+          drone.turnSpeed = 0.05; // Gentle seeking
+          
+          drone.damage = 300; // Reduced power but many drones
+          drone.armorPiercing = 40;
+          drone.hull = 30; // Destructible
+          drone.maxHull = 30;
+          drone.armor = 5;
+          drone.createdAt = now;
+          drone.lifespan = 3600000; // 1 hour (plenty of time to travel)
+
+          this.state.projectiles.set(drone.id, drone);
+          console.log(`STATION ${station.id} launched DRONE at ${drone.targetId}`);
+        }
+      }
     });
   }
 

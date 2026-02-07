@@ -17,6 +17,11 @@ export class Projectile extends Schema {
   
   @type("number") damage: number;
   @type("number") armorPiercing: number;
+
+  // For destructible projectiles like drones
+  @type("number") hull: number = 0;
+  @type("number") maxHull: number = 0;
+  @type("number") armor: number = 0;
   
   @type("number") createdAt: number;
   @type("number") lifespan: number = 5000; // ms
