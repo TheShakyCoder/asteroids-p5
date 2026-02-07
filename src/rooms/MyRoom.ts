@@ -397,14 +397,14 @@ export class MyRoom extends Room {
     this.state.stations.forEach((station) => {
       // Firing logic for corner turrets
       const turretWeapons = [
-        { type: "mec-b2-raptor", x: -250, y: -35 }, // TL AC
-        { type: "mrm-s3-harrier", x: -250, y: -35 }, // TL Missile
-        { type: "mec-b2-raptor", x: 250, y: -35 },  // TR AC
-        { type: "mrm-s3-harrier", x: 250, y: -35 },  // TR Missile
-        { type: "mec-b2-raptor", x: -250, y: 35 },  // BL AC
-        { type: "mrm-s3-harrier", x: -250, y: 35 },  // BL Missile
-        { type: "mec-b2-raptor", x: 250, y: 35 },   // BR AC
-        { type: "mrm-s3-harrier", x: 250, y: 35 }    // BR Missile
+        { type: "sta-b1-sentinel", x: -250, y: -35 }, // TL AC
+        { type: "sta-m1-goliath", x: -250, y: -35 },  // TL Missile
+        { type: "sta-b1-sentinel", x: 250, y: -35 },  // TR AC
+        { type: "sta-m1-goliath", x: 250, y: -35 },   // TR Missile
+        { type: "sta-b1-sentinel", x: -250, y: 35 },  // BL AC
+        { type: "sta-m1-goliath", x: -250, y: 35 },   // BL Missile
+        { type: "sta-b1-sentinel", x: 250, y: 35 },   // BR AC
+        { type: "sta-m1-goliath", x: 250, y: 35 }     // BR Missile
       ];
 
       turretWeapons.forEach((tw, idx) => {
