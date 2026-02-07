@@ -4,7 +4,7 @@ import { Player } from "./schema/Player.js";
 import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
 import { weapons } from "../data/weapons.js";
-import { calculateHit } from "../utils/combat.js";
+import { calculateHit, rollHitChance } from "../utils/combat.js";
 
 export class MyRoom extends Room {
   maxClients = 4;
@@ -164,13 +164,20 @@ export class MyRoom extends Room {
           shipSpec.weapons.forEach((sw, i) => {
             if (!player.weaponSlots[i]) return;
 
-            const weaponDef = weapons.find(w => w.id === sw.weapon);
+            // Normalize weapon ID and level
+            const wId = typeof sw.weapon === 'string' ? sw.weapon : sw.weapon.id;
+            const wLevel = typeof sw.weapon === 'string' ? 1 : (sw.weapon.level || 1);
+
+            const weaponDef = weapons.find(w => w.id === wId);
             if (!weaponDef) return;
 
             const now = this.state.serverTime;
             const lastFire = player.weaponLastFire.get(i.toString()) || 0;
 
-            if (now - lastFire >= weaponDef.fireDelay) {
+            // Use the new reload stat (converting to ms if it's in seconds)
+            const reloadMs = (weaponDef.reload || 1) * 1000;
+
+            if (now - lastFire >= reloadMs) {
               // Calculate world muzzle position
               const shipAngle = player.angle || 0;
               const cosA = Math.cos(shipAngle);
@@ -183,9 +190,18 @@ export class MyRoom extends Room {
               // Distance check
               const dx = target.x - muzzleWorldX;
               const dy = target.y - muzzleWorldY;
-              const dist = Math.sqrt(dx * dx + dy * dy);
+              const distance = Math.sqrt(dx * dx + dy * dy);
 
-              if (dist <= weaponDef.range) {
+              // Extract stats based on level
+              const lIdx = Math.max(0, wLevel - 1);
+              const optRange = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[lIdx] : (weaponDef.optimalRange || weaponDef.range || 500);
+              const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[lIdx] : (weaponDef.maxRange || weaponDef.range || 1000);
+              const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[lIdx] : (weaponDef.damage || 10);
+              const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[lIdx] : (weaponDef.damage || 10);
+              const accuracy = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[lIdx] : (weaponDef.accuracy || 400);
+              const fov = weaponDef.firingArc || weaponDef.fieldOfView || 45;
+
+              if (distance <= maxRange) {
                 // Angle check
                 const weaponWorldAngle = shipAngle + (sw.mount.rotation * Math.PI / 180) - (Math.PI / 2);
                 const angleToTarget = Math.atan2(dy, dx);
@@ -194,20 +210,35 @@ export class MyRoom extends Room {
                 while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                 while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-                const halfFovRad = (weaponDef.fieldOfView / 2) * Math.PI / 180;
+                const halfFovRad = (fov / 2) * Math.PI / 180;
                 if (Math.abs(angleDiff) <= halfFovRad) {
                   // FIRE!
                   player.weaponLastFire.set(i.toString(), now);
                   
-                  // APPLY DAMAGE
+                  // 1. ROLL TO HIT
+                  const didHit = rollHitChance({
+                    accuracy,
+                    optimalRange: optRange,
+                    maxRange,
+                    distance,
+                    evasion: 0 // Placeholder until evasion is added to schema
+                  });
+
+                  if (!didHit) {
+                    console.log(`Player ${player.id} MISSED ${target.id}`);
+                    return;
+                  }
+
+                  // 2. APPLY DAMAGE (randomize between min and max)
+                  const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
                   const hitResult = calculateHit({
-                    baseDamage: weaponDef.damage,
+                    baseDamage: baseDmg,
                     armor: target.armor,
                     armorPiercing: weaponDef.armorPiercing || 0
                   });
 
                   target.hull -= hitResult.finalHullDamage;
-                  console.log(`Player ${player.id} hit ${target.id} for ${hitResult.finalHullDamage} damage. Target hull: ${target.hull}`);
+                  console.log(`Player ${player.id} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)} damage. Target hull: ${target.hull.toFixed(1)}`);
 
                   if (target.hull <= 0) {
                     this.respawnPlayer(target);

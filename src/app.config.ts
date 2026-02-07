@@ -68,7 +68,8 @@ const server = defineServer({
             return ships.map(ship => ({
                 ...ship,
                 weapons: ship.weapons.map(sw => {
-                    const weaponData = weapons.find(w => w.id === sw.weapon);
+                    const wId = typeof sw.weapon === 'string' ? sw.weapon : sw.weapon.id;
+                    const weaponData = weapons.find(w => w.id === wId);
                     return {
                         ...sw,
                         weapon: weaponData || { name: "Unknown Weapon" }
