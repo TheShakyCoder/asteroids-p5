@@ -272,8 +272,10 @@ export class MyRoom extends Room {
     const faction = factions.find(f => f.id === player.faction) || factions[0];
     const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
 
-    player.x = faction.spawn.x + (Math.random() * 200 - 100);
-    player.y = faction.spawn.y + (Math.random() * 200 - 100);
+    const angle = Math.random() * Math.PI * 2;
+    const spawnRadius = 500;
+    player.x = faction.spawn.x + Math.cos(angle) * spawnRadius;
+    player.y = faction.spawn.y + Math.sin(angle) * spawnRadius;
     player.vx = 0;
     player.vy = 0;
     player.hull = shipSpec.stats.hull;
@@ -291,8 +293,10 @@ export class MyRoom extends Room {
     player.id = client.sessionId;
     player.faction = faction.id;
     player.shipClass = shipSpec.id;
-    player.x = faction.spawn.x;
-    player.y = faction.spawn.y;
+    const angle = Math.random() * Math.PI * 2;
+    const spawnRadius = 500;
+    player.x = faction.spawn.x + Math.cos(angle) * spawnRadius;
+    player.y = faction.spawn.y + Math.sin(angle) * spawnRadius;
     player.hull = shipSpec.stats.hull;
     player.armor = shipSpec.stats.armor;
     player.weaponRadius = shipSpec.stats.weaponRadius;

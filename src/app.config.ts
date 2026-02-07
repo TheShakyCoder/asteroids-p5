@@ -41,8 +41,11 @@ const server = defineServer({
         const __dirname = path.dirname(__filename);
         const clientDist = path.join(__dirname, "../public");
 
-        // Enable CORS for external clients (Desktop App)
-        app.use(cors());
+        // Enable CORS for external clients
+        app.use(cors({
+            origin: true, // Reflect the request origin in the Access-Control-Allow-Origin header
+            credentials: true
+        }));
         app.use(express.json());
 
         // --- API ROUTES ---
