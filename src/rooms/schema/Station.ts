@@ -1,4 +1,4 @@
-import { Schema, type } from "@colyseus/schema";
+import { Schema, type, MapSchema } from "@colyseus/schema";
 
 export class Station extends Schema {
   @type("string") id: string;
@@ -7,7 +7,9 @@ export class Station extends Schema {
   @type("number") y: number;
   @type("number") width: number = 500;
   @type("number") height: number = 70;
-  @type("number") hull: number = 5000;
-  @type("number") maxHull: number = 5000;
+  @type("number") hull: number = 40000;
+  @type("number") maxHull: number = 40000;
+  @type("number") armor: number = 100; // Bases are heavy
+  @type({ map: "number" }) weaponLastFire = new MapSchema<number>();
   @type("number") angle: number = 0;
 }

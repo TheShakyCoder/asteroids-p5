@@ -63,7 +63,7 @@ export class MyRoom extends Room {
         }
       });
 
-      player.targetId = nearest ? nearest.id : "";
+      player.targetId = nearest ? (nearest as any).id : "";
       console.log(`Player ${client.sessionId} targeting ${player.targetId || 'NOTHING'}`);
     });
 
@@ -71,13 +71,12 @@ export class MyRoom extends Room {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
-      // Currently only players exist, so target nearest player (enemy or neutral)
-      let nearest: Player | null = null;
+      let nearest: Player | Station | null = null;
       let minDist = Infinity;
 
+      // Scan both players and stations
       this.state.players.forEach((other) => {
         if (other.id === client.sessionId) return;
-
         const dist = Math.sqrt((other.x - player.x) ** 2 + (other.y - player.y) ** 2);
         if (dist < minDist) {
           minDist = dist;
@@ -85,7 +84,15 @@ export class MyRoom extends Room {
         }
       });
 
-      player.targetId = nearest ? nearest.id : "";
+      this.state.stations.forEach((station) => {
+        const dist = Math.sqrt((station.x - player.x) ** 2 + (station.y - player.y) ** 2);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = station;
+        }
+      });
+
+      player.targetId = nearest ? (nearest as any).id : "";
     });
 
     this.onMessage("input", (client, input) => {
@@ -103,6 +110,14 @@ export class MyRoom extends Room {
   }
 
   update(deltaTime: number) {
+    try {
+      this._update(deltaTime);
+    } catch (e) {
+      console.error("CRITICAL ERROR IN UPDATE LOOP:", e);
+    }
+  }
+
+  private _update(deltaTime: number) {
     const worldHalfWidth = this.state.width / 2;
     const worldHalfHeight = this.state.height / 2;
 
@@ -175,7 +190,7 @@ export class MyRoom extends Room {
 
       // 3. WEAPON FIRING LOGIC
       if (player.targetId && shipSpec.weapons) {
-        const target = this.state.players.get(player.targetId);
+        const target = this.state.players.get(player.targetId) || this.state.stations.get(player.targetId);
         if (target) {
           shipSpec.weapons.forEach((sw, i) => {
             if (!player.weaponSlots[i]) return;
@@ -192,7 +207,7 @@ export class MyRoom extends Room {
             const lastFire = player.weaponLastFire.get(i.toString()) || 0;
 
             // Extract leveled stats
-            const reload = Array.isArray(weaponDef.reload) ? weaponDef.reload[lIdx] : (weaponDef.reload || 1);
+            const reload = Array.isArray(weaponDef.reload) ? weaponDef.reload[lIdx] : (weaponDef.reload as any || 1);
             const reloadMs = reload * 1000;
 
             if (now - lastFire >= reloadMs) {
@@ -224,9 +239,7 @@ export class MyRoom extends Room {
                 const weaponWorldAngle = shipAngle + (sw.mount.rotation * Math.PI / 180) - (Math.PI / 2);
                 const angleToTarget = Math.atan2(dy, dx);
                 
-                let angleDiff = angleToTarget - weaponWorldAngle;
-                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                let angleDiff = Math.atan2(Math.sin(angleToTarget - weaponWorldAngle), Math.cos(angleToTarget - weaponWorldAngle));
 
                 const halfFovRad = (fov / 2) * Math.PI / 180;
                 if (Math.abs(angleDiff) <= halfFovRad) {
@@ -260,7 +273,19 @@ export class MyRoom extends Room {
                     console.log(`Player ${player.id} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)} damage. Target hull: ${target.hull.toFixed(1)}`);
 
                     if (target.hull <= 0) {
-                      this.respawnPlayer(target);
+                      if (this.state.players.has(target.id)) {
+                        this.respawnPlayer(target as Player);
+                      } else {
+                        // STATION DESTROYED! 
+                        const stationTarget = target as Station;
+                        console.log(`STATION ${target.id} DESTROYED!`);
+                        
+                        // Set winner state
+                        this.state.winner = (stationTarget.faction === 'humans') ? 'martians' : 'humans';
+                        
+                        // Reset HP (optional, for gameplay continuity or just stop state)
+                        stationTarget.hull = stationTarget.maxHull;
+                      }
                     }
                   } else {
                     // SPAWN MISSILE
@@ -318,9 +343,7 @@ export class MyRoom extends Room {
             // Move forwards based on proj.angle
             
             // Smoother turning towards target
-            let angleDiff = targetAngle - (proj.angle - Math.PI/2);
-            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            let angleDiff = Math.atan2(Math.sin(targetAngle - (proj.angle - Math.PI/2)), Math.cos(targetAngle - (proj.angle - Math.PI/2)));
             
             // Use turnSpeed from schema
             proj.angle += Math.max(-proj.turnSpeed, Math.min(proj.turnSpeed, angleDiff));
@@ -358,13 +381,116 @@ export class MyRoom extends Room {
                   this.respawnPlayer(target as any);
                 } else {
                   // Station destroyed? Reset hull
-                  (target as any).hull = (target as any).maxHull || 5000;
+                  const station = target as Station;
+                  station.hull = station.maxHull;
+                  console.log(`STATION ${proj.targetId} DESTROYED!`);
                 }
               }
               this.state.projectiles.delete(id);
             }
         }
       }
+    });
+
+    // 5. STATION AUTONOMOUS LOGIC
+    this.state.stations.forEach((station) => {
+      // Firing logic for corner turrets
+      const turretWeapons = [
+        { type: "mec-b2-raptor", x: -250, y: -35 }, // TL AC
+        { type: "mrm-s3-harrier", x: -250, y: -35 }, // TL Missile
+        { type: "mec-b2-raptor", x: 250, y: -35 },  // TR AC
+        { type: "mrm-s3-harrier", x: 250, y: -35 },  // TR Missile
+        { type: "mec-b2-raptor", x: -250, y: 35 },  // BL AC
+        { type: "mrm-s3-harrier", x: -250, y: 35 },  // BL Missile
+        { type: "mec-b2-raptor", x: 250, y: 35 },   // BR AC
+        { type: "mrm-s3-harrier", x: 250, y: 35 }    // BR Missile
+      ];
+
+      turretWeapons.forEach((tw, idx) => {
+        const weaponDef = weapons.find(w => w.id === tw.type);
+        if (!weaponDef) return;
+
+        const turretId = `${station.id}_t${idx}`;
+        const now = this.state.serverTime;
+        const lastFire = station.weaponLastFire.get(turretId) || 0;
+        const reload = Array.isArray(weaponDef.reload) ? weaponDef.reload[0] : (weaponDef.reload as any || 1);
+        const reloadMs = reload * 1000;
+
+        if (now - lastFire >= reloadMs) {
+          // Find nearest enemy player
+          let nearest: Player | null = null;
+          let minDist = Infinity;
+
+          this.state.players.forEach((p) => {
+            if (p.faction === station.faction) return;
+            const dist = Math.sqrt((p.x - (station.x + tw.x)) ** 2 + (p.y - (station.y + tw.y)) ** 2);
+            if (dist < minDist) {
+              minDist = dist;
+              nearest = p;
+            }
+          });
+
+          if (nearest && minDist <= (weaponDef.maxRange as any || 1000)) {
+            // FIRE!
+            station.weaponLastFire.set(turretId, now);
+            const dx = nearest.x - (station.x + tw.x);
+            const dy = nearest.y - (station.y + tw.y);
+            // Weapon angle faces target
+            const angle = Math.atan2(dy, dx) + Math.PI/2;
+
+            if (weaponDef.type !== "Missile") {
+              const acc = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[0] : (weaponDef.accuracy as any || 400);
+              const optR = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[0] : (weaponDef.optimalRange as any || 500);
+              const maxR = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[0] : (weaponDef.maxRange as any || 1000);
+
+              const didHit = rollHitChance({
+                accuracy: acc,
+                optimalRange: optR,
+                maxRange: maxR,
+                distance: minDist,
+                evasion: 0
+              });
+
+              if (didHit) {
+                const minDmg = weaponDef.minDamage as any || 10;
+                const maxDmg = weaponDef.maxDamage as any || 10;
+                const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
+                const hitResult = calculateHit({
+                  baseDamage: baseDmg,
+                  armor: nearest.armor,
+                  armorPiercing: weaponDef.armorPiercing as any || 0
+                });
+                nearest.hull -= hitResult.finalHullDamage;
+                if (nearest.hull <= 0) this.respawnPlayer(nearest);
+              }
+            } else {
+              // SPAWN MISSILE
+              const projectile = new Projectile();
+              projectile.id = Math.random().toString(36).substring(2, 11);
+              projectile.type = "missile";
+              projectile.faction = station.faction;
+              projectile.ownerId = station.id;
+              projectile.targetId = nearest.id;
+              projectile.x = station.x + tw.x;
+              projectile.y = station.y + tw.y;
+              projectile.angle = angle;
+                      const minD = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[0] : (weaponDef.minDamage as any || 10);
+                      const maxD = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[0] : (weaponDef.maxDamage as any || 20);
+                      const ap = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[0] : (weaponDef.armorPiercing as any || 0);
+
+                      projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[0] : (weaponDef.projectileSpeed as any || 4);
+                      projectile.acceleration = Array.isArray(weaponDef.projectileAcceleration) ? weaponDef.projectileAcceleration[0] : (weaponDef.projectileAcceleration as any || 0.15);
+                      projectile.maxSpeed = Array.isArray(weaponDef.projectileMaxSpeed) ? weaponDef.projectileMaxSpeed[0] : (weaponDef.projectileMaxSpeed as any || 12);
+                      projectile.turnSpeed = Array.isArray(weaponDef.projectileAngularVelocity) ? weaponDef.projectileAngularVelocity[0] : (weaponDef.projectileAngularVelocity as any || 0.1);
+                      projectile.damage = minD + Math.random() * (maxD = minD);
+                      projectile.armorPiercing = ap;
+              projectile.createdAt = now;
+              projectile.lifespan = 5000;
+              this.state.projectiles.set(projectile.id, projectile);
+            }
+          }
+        }
+      });
     });
   }
 
