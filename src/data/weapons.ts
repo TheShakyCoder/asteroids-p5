@@ -94,5 +94,59 @@ export const weapons = [
         powerCost: 3.2,
         firingArc: 65,
         tylium: 50000
+    },
+    {
+        id: "mrm-s3-harrier",
+        name: "MRM-S3 \"Harrier\" Medium Missile Battery",
+        type: "Missile",
+        class: "Medium",
+        fireDuration: 280,
+        fireStroke: 1,
+
+        minDamage: [14, 15.55, 17.11, 18.66, 20.22, 21.77, 23.33, 24.88, 26.44, 28],
+        maxDamage: [85, 94.44, 103.88, 113.33, 122.77, 132.22, 141.66, 151.11, 160.55, 170],
+        dps: [28, 31, 34, 37, 40, 43, 46, 49, 52, 56],
+
+        armorPiercing: 14,
+
+        minRange: 200,
+        maxRange: 1300,
+        optimalRange: [600, 630, 660, 690, 720, 750, 780, 810, 840, 870],
+
+        accuracy: 320,
+        criticalOffense: 115,
+
+        reload: 1.40,
+        powerCost: 3.00,
+        firingArc: 65.00,
+
+        tylium: 52000
+    },
+    {
+        id: "hvm-x9-judgement",
+        name: "HVM-X9 \"Judgement\" Heavy Capital Missile Array",
+        type: "Missile",
+        class: "Heavy",
+        fireDuration: 340,
+        fireStroke: 1,
+
+        minDamage: [30, 33.33, 36.66, 40, 43.33, 46.66, 50, 53.33, 56.66, 60],
+        maxDamage: [160, 177.77, 195.55, 213.33, 231.11, 248.88, 266.66, 284.44, 302.22, 320],
+        dps: [40, 44, 48, 52, 56, 60, 64, 68, 72, 80],
+
+        armorPiercing: 28,
+
+        minRange: 300,
+        maxRange: 1600,
+        optimalRange: [750, 780, 810, 840, 870, 900, 930, 960, 990, 1020],
+
+        accuracy: 280,
+        criticalOffense: 150,
+
+        reload: 2.10,
+        powerCost: 4.80,
+        firingArc: 60.00,
+
+        tylium: 120000
     }
 ];

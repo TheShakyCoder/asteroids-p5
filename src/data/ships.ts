@@ -47,11 +47,25 @@ export const ships = [
           stats: { speed: 5, armor: 40, hull: 200, weaponRadius: 5, angularVelocity: 30, acceleration: 0.3, maxVelocity: 7, lateralDamping: 0.08 },
   weapons: [
     {
-      weapon: 'medium-plasma-rifle',
+      weapon: {
+        id: 'medium-plasma-rifle',
+        level: 1
+      },
       mount: {
         left: 15,
         front: 15,
-        rotation: 0,
+        rotation: -45,
+      }
+    },
+    {
+      weapon: {
+        id: 'mrm-s3-harrier',
+        level: 1
+      },
+      mount: {
+        left: -15,
+        front: 15,
+        rotation: 45,
       }
     }
   ]
@@ -64,11 +78,25 @@ export const ships = [
           stats: { speed: 3, armor: 60, hull: 400, weaponRadius: 10, angularVelocity: 15, acceleration: 0.2, maxVelocity: 4, lateralDamping: 0.04 },
   weapons: [
     {
-      weapon: 'heavy-plasma-rifle',
+      weapon: {
+        id: 'heavy-plasma-rifle',
+        level: 1
+      },
       mount: {
         left: 25,
         front: 0,
         rotation: -90,
+      }
+    },
+    {
+      weapon: {
+        id: 'hvm-x9-judgement',
+        level: 1
+      },
+      mount: {
+        left: -25,
+        front: 0,
+        rotation: 90,
       }
     }
   ]
