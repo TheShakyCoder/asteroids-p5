@@ -1,6 +1,7 @@
 import { Room, Client, CloseCode } from "colyseus";
 import { MyRoomState } from "./schema/MyRoomState.js";
 import { Player } from "./schema/Player.js";
+import { Station } from "./schema/Station.js";
 import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
 import { weapons } from "../data/weapons.js";
@@ -22,6 +23,19 @@ export class MyRoom extends Room {
   onCreate (options: any) {
     console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
     this.setMetadata({ factionCounts: {} });
+
+    // Initialize Faction Bases
+    factions.forEach(f => {
+      const station = new Station();
+      station.id = `base_${f.id}`;
+      station.faction = f.id;
+      station.x = f.spawn.x;
+      station.y = f.spawn.y;
+      station.width = 500;
+      station.height = 70;
+      station.angle = 0; // Stationary for now
+      this.state.stations.set(station.id, station);
+    });
     
     this.onMessage("toggle-weapon", (client, index: number) => {
       const player = this.state.players.get(client.sessionId);
