@@ -21,6 +21,7 @@ export class MyRoom extends Room {
 
   onCreate (options: any) {
     console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
+    this.setMetadata({ factionCounts: {} });
     
     this.onMessage("toggle-weapon", (client, index: number) => {
       const player = this.state.players.get(client.sessionId);
@@ -291,11 +292,13 @@ export class MyRoom extends Room {
     }
     
     this.state.players.set(client.sessionId, player);
+    this.updateMetadata();
   }
 
   onLeave (client: Client, code: CloseCode) {
     console.log(client.sessionId, "left!", code);
     this.state.players.delete(client.sessionId);
+    this.updateMetadata();
   }
 
   onDispose() {
@@ -303,6 +306,14 @@ export class MyRoom extends Room {
      * Called when the room is disposed.
      */
     console.log("room", this.roomId, "disposing...");
+  }
+
+  updateMetadata() {
+    const counts: any = {};
+    this.state.players.forEach(p => {
+      counts[p.faction] = (counts[p.faction] || 0) + 1;
+    });
+    this.setMetadata({ factionCounts: counts });
   }
 
 }
