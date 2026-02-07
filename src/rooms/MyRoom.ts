@@ -506,6 +506,7 @@ export class MyRoom extends Room {
     player.y = faction.spawn.y + Math.sin(angle) * spawnRadius;
     player.vx = 0;
     player.vy = 0;
+    player.angle = 0;
     player.hull = shipSpec.stats.hull;
     player.armor = shipSpec.stats.armor;
     player.targetId = "";
@@ -525,6 +526,9 @@ export class MyRoom extends Room {
     const spawnRadius = 500;
     player.x = faction.spawn.x + Math.cos(angle) * spawnRadius;
     player.y = faction.spawn.y + Math.sin(angle) * spawnRadius;
+    player.angle = 0;
+    player.vx = 0;
+    player.vy = 0;
     player.hull = shipSpec.stats.hull;
     player.armor = shipSpec.stats.armor;
     player.weaponRadius = shipSpec.stats.weaponRadius;
