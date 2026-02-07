@@ -1,0 +1,5 @@
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
+
+# Install Bun via NPM to a system-wide location, bypassing the need for 'unzip' in the build step
+RUN npm install -g bun --prefix /usr/local

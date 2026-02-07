@@ -194,12 +194,12 @@ export class MyRoom extends Room {
 
               // Extract stats based on level
               const lIdx = Math.max(0, wLevel - 1);
-              const optRange = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[lIdx] : (weaponDef.optimalRange || weaponDef.range || 500);
-              const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[lIdx] : (weaponDef.maxRange || weaponDef.range || 1000);
-              const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[lIdx] : (weaponDef.damage || 10);
-              const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[lIdx] : (weaponDef.damage || 10);
+              const optRange = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[lIdx] : (weaponDef.optimalRange || 500);
+              const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[lIdx] : (weaponDef.maxRange || 1000);
+              const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[lIdx] : 10;
+              const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[lIdx] : 10;
               const accuracy = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[lIdx] : (weaponDef.accuracy || 400);
-              const fov = weaponDef.firingArc || weaponDef.fieldOfView || 45;
+              const fov = weaponDef.firingArc || 45;
 
               if (distance <= maxRange) {
                 // Angle check

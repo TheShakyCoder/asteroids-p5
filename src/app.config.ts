@@ -8,6 +8,10 @@ import {
     matchMaker,
     LobbyRoom,
 } from "colyseus";
+import express from "express";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 /**
  * Import your Room files
@@ -27,45 +31,53 @@ const server = defineServer({
     },
 
     /**
-     * Experimental: Define API routes. Built-in integration with the "playground" and SDK.
-     * 
-     * Usage from SDK: 
-     *   client.http.get("/api/hello").then((response) => {})
-     * 
+     * Bind your custom express routes here:
      */
-    routes: createRouter({
-        api_hello: createEndpoint("/api/hello", { method: "GET", }, async (ctx) => {
-            return { message: "Hello World" }
-        }),
+    express: (app) => {
+        /**
+         * Serve static files from the client's dist directory
+         */
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const clientDist = path.join(__dirname, "../public");
 
-        api_rooms: createEndpoint("/api/rooms", { method: "GET" }, async (ctx) => {
-            return await matchMaker.query({});
-        }),
+        // Enable CORS for external clients (Desktop App)
+        app.use(cors());
+        app.use(express.json());
 
-        api_create_room: createEndpoint("/api/rooms", { method: "POST" }, async (ctx) => {
-            const options = ctx.body || {};
+        // --- API ROUTES ---
+        app.get("/api/hello", (req, res) => {
+            res.json({ message: "Hello World" });
+        });
+
+        app.get("/api/rooms", async (req, res) => {
+            const rooms = await matchMaker.query({});
+            res.json(rooms);
+        });
+
+        app.post("/api/rooms", async (req, res) => {
+            const options = req.body || {};
             const room = await matchMaker.createRoom("my_room", options);
-            return room;
-        }),
+            res.json(room);
+        });
 
-        api_delete_room: createEndpoint("/api/rooms/:id", { method: "DELETE" }, async (ctx) => {
-            const roomId = ctx.params.id;
+        app.delete("/api/rooms/:id", async (req, res) => {
+            const roomId = req.params.id;
             const roomInstance = matchMaker.getLocalRoomById(roomId);
             if (roomInstance) {
                 await roomInstance.disconnect();
-                return { success: true };
+                res.json({ success: true });
             } else {
-                return { success: false, error: "Room not found or not active on this node." };
+                res.status(404).json({ success: false, error: "Room not found or not active on this node." });
             }
-        }),
+        });
 
-        api_factions: createEndpoint("/api/factions", { method: "GET" }, async (ctx) => {
-            return factions;
-        }),
+        app.get("/api/factions", (req, res) => {
+            res.json(factions);
+        });
 
-        api_ships: createEndpoint("/api/ships", { method: "GET" }, async (ctx) => {
-            // Merge ship weapons with full weapon data for the client
-            return ships.map(ship => ({
+        app.get("/api/ships", (req, res) => {
+            const data = ships.map(ship => ({
                 ...ship,
                 weapons: ship.weapons.map(sw => {
                     const wId = typeof sw.weapon === 'string' ? sw.weapon : sw.weapon.id;
@@ -76,32 +88,32 @@ const server = defineServer({
                     };
                 })
             }));
-        })
-    }),
+            res.json(data);
+        });
 
-    /**
-     * Bind your custom express routes here:
-     * Read more: https://expressjs.com/en/starter/basic-routing.html
-     */
-    express: (app) => {
         app.get("/hi", (req, res) => {
             res.send("It's time to kick ass and chew bubblegum!");
         });
 
+        app.use(express.static(clientDist));
+
         /**
          * Use @colyseus/monitor
-         * It is recommended to protect this route with a password
-         * Read more: https://docs.colyseus.io/tools/monitoring/#restrict-access-to-the-panel-using-a-password
          */
         app.use("/monitor", monitor());
 
         /**
          * Use @colyseus/playground
-         * (It is not recommended to expose this route in a production environment)
          */
         if (process.env.NODE_ENV !== "production") {
-            app.use("/", playground());
+            app.use("/playground", playground());
         }
+
+        // Catch-all route to serve the built index.html (SPA support)
+        app.get("*", (req, res) => {
+            if (res.headersSent) return;
+            res.sendFile(path.join(clientDist, "index.html"));
+        });
     }
 
 });
