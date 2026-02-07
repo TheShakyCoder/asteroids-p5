@@ -187,11 +187,13 @@ export class MyRoom extends Room {
             const weaponDef = weapons.find(w => w.id === wId);
             if (!weaponDef) return;
 
+            const lIdx = Math.max(0, wLevel - 1);
             const now = this.state.serverTime;
             const lastFire = player.weaponLastFire.get(i.toString()) || 0;
 
-            // Use the new reload stat (converting to ms if it's in seconds)
-            const reloadMs = (weaponDef.reload || 1) * 1000;
+            // Extract leveled stats
+            const reload = Array.isArray(weaponDef.reload) ? weaponDef.reload[lIdx] : (weaponDef.reload || 1);
+            const reloadMs = reload * 1000;
 
             if (now - lastFire >= reloadMs) {
               // Calculate world muzzle position
@@ -209,13 +211,13 @@ export class MyRoom extends Room {
               const distance = Math.sqrt(dx * dx + dy * dy);
 
               // Extract stats based on level
-              const lIdx = Math.max(0, wLevel - 1);
               const optRange = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[lIdx] : (weaponDef.optimalRange || 500);
               const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[lIdx] : (weaponDef.maxRange || 1000);
               const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[lIdx] : 10;
               const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[lIdx] : 10;
               const accuracy = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[lIdx] : (weaponDef.accuracy || 400);
-              const fov = weaponDef.firingArc || 45;
+              const armorPiercing = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[lIdx] : (weaponDef.armorPiercing || 0);
+              const fov = Array.isArray(weaponDef.firingArc) ? weaponDef.firingArc[lIdx] : (weaponDef.firingArc || 45);
 
               if (distance <= maxRange) {
                 // Angle check
@@ -251,7 +253,7 @@ export class MyRoom extends Room {
                     const hitResult = calculateHit({
                       baseDamage: baseDmg,
                       armor: target.armor,
-                      armorPiercing: weaponDef.armorPiercing || 0
+                      armorPiercing: armorPiercing
                     });
 
                     target.hull -= hitResult.finalHullDamage;
@@ -273,7 +275,7 @@ export class MyRoom extends Room {
                     projectile.angle = shipAngle; // Start with ship's heading
                     projectile.speed = 10; // Missile speed
                     projectile.damage = minDmg + Math.random() * (maxDmg - minDmg);
-                    projectile.armorPiercing = weaponDef.armorPiercing || 0;
+                    projectile.armorPiercing = armorPiercing;
                     projectile.createdAt = now;
                     projectile.lifespan = 5000;
 
