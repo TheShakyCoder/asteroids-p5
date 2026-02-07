@@ -90,6 +90,13 @@ export const weapons = [
 
         accuracy: 300,
         criticalOffense: 120,
+
+        // Projectile Physics
+        projectileSpeed: 5,
+        projectileMaxSpeed: 15,
+        projectileAcceleration: 0.2,
+        projectileAngularVelocity: 0.15,
+
         reload: 1.6,
         powerCost: 3.2,
         firingArc: 65,
@@ -115,6 +122,12 @@ export const weapons = [
 
         accuracy: 320,
         criticalOffense: 115,
+
+        // Projectile Physics
+        projectileSpeed: 4,
+        projectileMaxSpeed: 12,
+        projectileAcceleration: 0.15,
+        projectileAngularVelocity: 0.10,
 
         reload: 1.40,
         powerCost: 3.00,
@@ -142,6 +155,12 @@ export const weapons = [
 
         accuracy: 280,
         criticalOffense: 150,
+
+        // Projectile Physics
+        projectileSpeed: 3,
+        projectileMaxSpeed: 10,
+        projectileAcceleration: 0.1,
+        projectileAngularVelocity: 0.05,
 
         reload: 2.10,
         powerCost: 4.80,

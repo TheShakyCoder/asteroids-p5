@@ -273,7 +273,13 @@ export class MyRoom extends Room {
                     projectile.x = muzzleWorldX;
                     projectile.y = muzzleWorldY;
                     projectile.angle = shipAngle; // Start with ship's heading
-                    projectile.speed = 10; // Missile speed
+                    
+                    // Initialize physics stats from weapon definition
+                    projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[lIdx] : (weaponDef.projectileSpeed || 10);
+                    projectile.acceleration = Array.isArray(weaponDef.projectileAcceleration) ? weaponDef.projectileAcceleration[lIdx] : (weaponDef.projectileAcceleration || 0.2);
+                    projectile.maxSpeed = Array.isArray(weaponDef.projectileMaxSpeed) ? weaponDef.projectileMaxSpeed[lIdx] : (weaponDef.projectileMaxSpeed || 15);
+                    projectile.turnSpeed = Array.isArray(weaponDef.projectileAngularVelocity) ? weaponDef.projectileAngularVelocity[lIdx] : (weaponDef.projectileAngularVelocity || 0.15);
+
                     projectile.damage = minDmg + Math.random() * (maxDmg - minDmg);
                     projectile.armorPiercing = armorPiercing;
                     projectile.createdAt = now;
@@ -316,15 +322,14 @@ export class MyRoom extends Room {
             while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
             while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
             
-            const turnSpeed = 0.1; // rad per tick
-            proj.angle += Math.max(-turnSpeed, Math.min(turnSpeed, angleDiff));
-
-            // Move
-            proj.x += Math.cos(proj.angle - Math.PI/2) * proj.speed; // Adjust for p5 coordinate system if needed, but let's stay consistent with ship physics
-            // Actually, ship physics uses sin/cos based on angle directly.
-            //facingX = Math.sin(player.angle); facingY = -Math.cos(player.angle);
-            // Let's stick to that.
+            // Use turnSpeed from schema
+            proj.angle += Math.max(-proj.turnSpeed, Math.min(proj.turnSpeed, angleDiff));
         }
+      }
+
+      // 4b. ACCELERATION & MOVEMENT
+      if (proj.speed < proj.maxSpeed) {
+        proj.speed = Math.min(proj.maxSpeed, proj.speed + proj.acceleration);
       }
 
       // Movement (Independent of whether it is seeking or not)

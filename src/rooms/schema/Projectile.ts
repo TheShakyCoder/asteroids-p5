@@ -11,6 +11,9 @@ export class Projectile extends Schema {
   @type("number") y: number;
   @type("number") angle: number;
   @type("number") speed: number;
+  @type("number") acceleration: number;
+  @type("number") maxSpeed: number;
+  @type("number") turnSpeed: number;
   
   @type("number") damage: number;
   @type("number") armorPiercing: number;
