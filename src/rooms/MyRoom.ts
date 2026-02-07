@@ -297,7 +297,8 @@ export class MyRoom extends Room {
                     projectile.targetId = player.targetId;
                     projectile.x = muzzleWorldX;
                     projectile.y = muzzleWorldY;
-                    projectile.angle = shipAngle; // Start with ship's heading
+                    // Start with ship's heading + mount rotation
+                    projectile.angle = shipAngle + (sw.mount.rotation * Math.PI / 180);
                     
                     // Initialize physics stats from weapon definition
                     projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[lIdx] : (weaponDef.projectileSpeed || 10);
@@ -482,7 +483,7 @@ export class MyRoom extends Room {
                       projectile.acceleration = Array.isArray(weaponDef.projectileAcceleration) ? weaponDef.projectileAcceleration[0] : (weaponDef.projectileAcceleration as any || 0.15);
                       projectile.maxSpeed = Array.isArray(weaponDef.projectileMaxSpeed) ? weaponDef.projectileMaxSpeed[0] : (weaponDef.projectileMaxSpeed as any || 12);
                       projectile.turnSpeed = Array.isArray(weaponDef.projectileAngularVelocity) ? weaponDef.projectileAngularVelocity[0] : (weaponDef.projectileAngularVelocity as any || 0.1);
-                      projectile.damage = minD + Math.random() * (maxD = minD);
+                      projectile.damage = minD + Math.random() * (maxD - minD);
                       projectile.armorPiercing = ap;
               projectile.createdAt = now;
               projectile.lifespan = 5000;
