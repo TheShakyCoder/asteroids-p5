@@ -21,7 +21,7 @@ export class MyRoom extends Room {
     }
   }
 
-  onCreate (options: any) {
+  onCreate(options: any) {
     console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
     this.setMetadata({ factionCounts: {} });
 
@@ -37,7 +37,7 @@ export class MyRoom extends Room {
       station.angle = 0; // Stationary for now
       this.state.stations.set(station.id, station);
     });
-    
+
     this.onMessage("toggle-weapon", (client, index: number) => {
       const player = this.state.players.get(client.sessionId);
       if (player && player.weaponSlots[index] !== undefined) {
@@ -144,10 +144,10 @@ export class MyRoom extends Room {
         player.vx += facingX * acceleration;
         player.vy += facingY * acceleration;
       }
-      
+
       // 1. Sideways (Lateral) Damping: reduces "icy" sliding.
       // High-speed interceptors feel this drift most when turning.
-      const lateralDamping = shipSpec.stats.lateralDamping || 0.05; 
+      const lateralDamping = shipSpec.stats.lateralDamping || 0.05;
       const rightX = -facingY;
       const rightY = facingX;
       const lateralVel = player.vx * rightX + player.vy * rightY;
@@ -238,14 +238,14 @@ export class MyRoom extends Room {
                 // Angle check
                 const weaponWorldAngle = shipAngle + (sw.mount.rotation * Math.PI / 180) - (Math.PI / 2);
                 const angleToTarget = Math.atan2(dy, dx);
-                
+
                 let angleDiff = Math.atan2(Math.sin(angleToTarget - weaponWorldAngle), Math.cos(angleToTarget - weaponWorldAngle));
 
                 const halfFovRad = (fov / 2) * Math.PI / 180;
                 if (Math.abs(angleDiff) <= halfFovRad) {
                   // FIRE!
                   player.weaponLastFire.set(i.toString(), now);
-                  
+
                   // 1. ROLL TO HIT (Autocannons only)
                   if (weaponDef.type !== "Missile") {
                     const didHit = rollHitChance({
@@ -279,10 +279,10 @@ export class MyRoom extends Room {
                         // STATION DESTROYED! 
                         const stationTarget = target as Station;
                         console.log(`STATION ${target.id} DESTROYED!`);
-                        
+
                         // Set winner state
                         this.state.winner = (stationTarget.faction === 'humans') ? 'martians' : 'humans';
-                        
+
                         // Reset HP (optional, for gameplay continuity or just stop state)
                         stationTarget.hull = stationTarget.maxHull;
                       }
@@ -299,7 +299,7 @@ export class MyRoom extends Room {
                     projectile.y = muzzleWorldY;
                     // Start with ship's heading + mount rotation
                     projectile.angle = shipAngle + (sw.mount.rotation * Math.PI / 180);
-                    
+
                     // Initialize physics stats from weapon definition
                     projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[lIdx] : (weaponDef.projectileSpeed || 10);
                     projectile.acceleration = Array.isArray(weaponDef.projectileAcceleration) ? weaponDef.projectileAcceleration[lIdx] : (weaponDef.projectileAcceleration || 0.2);
@@ -336,18 +336,18 @@ export class MyRoom extends Room {
       if (proj.type === "missile" && proj.targetId) {
         const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId);
         if (target) {
-            const dx = (target as any).x - proj.x;
-            const dy = (target as any).y - proj.y;
-            const targetAngle = Math.atan2(dy, dx);
-            
-            // Projectile angle is in radians, facing direction.
-            // Move forwards based on proj.angle
-            
-            // Smoother turning towards target
-            let angleDiff = Math.atan2(Math.sin(targetAngle - (proj.angle - Math.PI/2)), Math.cos(targetAngle - (proj.angle - Math.PI/2)));
-            
-            // Use turnSpeed from schema
-            proj.angle += Math.max(-proj.turnSpeed, Math.min(proj.turnSpeed, angleDiff));
+          const dx = (target as any).x - proj.x;
+          const dy = (target as any).y - proj.y;
+          const targetAngle = Math.atan2(dy, dx);
+
+          // Projectile angle is in radians, facing direction.
+          // Move forwards based on proj.angle
+
+          // Smoother turning towards target
+          let angleDiff = Math.atan2(Math.sin(targetAngle - (proj.angle - Math.PI / 2)), Math.cos(targetAngle - (proj.angle - Math.PI / 2)));
+
+          // Use turnSpeed from schema
+          proj.angle += Math.max(-proj.turnSpeed, Math.min(proj.turnSpeed, angleDiff));
         }
       }
 
@@ -364,31 +364,31 @@ export class MyRoom extends Room {
       if (proj.targetId) {
         const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId);
         if (target) {
-            const dx = (target as any).x - proj.x;
-            const dy = (target as any).y - proj.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < 30) { // Impact radius
-              const hitResult = calculateHit({
-                baseDamage: proj.damage,
-                armor: (target as any).armor || 0,
-                armorPiercing: proj.armorPiercing
-              });
+          const dx = (target as any).x - proj.x;
+          const dy = (target as any).y - proj.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 30) { // Impact radius
+            const hitResult = calculateHit({
+              baseDamage: proj.damage,
+              armor: (target as any).armor || 0,
+              armorPiercing: proj.armorPiercing
+            });
 
-              (target as any).hull -= hitResult.finalHullDamage;
-              console.log(`Missile hit ${proj.targetId} for ${hitResult.finalHullDamage.toFixed(1)}`);
-              
-              if ((target as any).hull <= 0) {
-                if (this.state.players.has(proj.targetId)) {
-                  this.respawnPlayer(target as any);
-                } else {
-                  // Station destroyed? Reset hull
-                  const station = target as Station;
-                  station.hull = station.maxHull;
-                  console.log(`STATION ${proj.targetId} DESTROYED!`);
-                }
+            (target as any).hull -= hitResult.finalHullDamage;
+            console.log(`Missile hit ${proj.targetId} for ${hitResult.finalHullDamage.toFixed(1)}`);
+
+            if ((target as any).hull <= 0) {
+              if (this.state.players.has(proj.targetId)) {
+                this.respawnPlayer(target as any);
+              } else {
+                // Station destroyed? Reset hull
+                const station = target as Station;
+                station.hull = station.maxHull;
+                console.log(`STATION ${proj.targetId} DESTROYED!`);
               }
-              this.state.projectiles.delete(id);
             }
+            this.state.projectiles.delete(id);
+          }
         }
       }
     });
@@ -437,7 +437,7 @@ export class MyRoom extends Room {
             const dx = nearest.x - (station.x + tw.x);
             const dy = nearest.y - (station.y + tw.y);
             // Weapon angle faces target
-            const angle = Math.atan2(dy, dx) + Math.PI/2;
+            const angle = Math.atan2(dy, dx) + Math.PI / 2;
 
             if (weaponDef.type !== "Missile") {
               const acc = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[0] : (weaponDef.accuracy as any || 400);
@@ -475,16 +475,16 @@ export class MyRoom extends Room {
               projectile.x = station.x + tw.x;
               projectile.y = station.y + tw.y;
               projectile.angle = angle;
-                      const minD = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[0] : (weaponDef.minDamage as any || 10);
-                      const maxD = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[0] : (weaponDef.maxDamage as any || 20);
-                      const ap = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[0] : (weaponDef.armorPiercing as any || 0);
+              const minD = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[0] : (weaponDef.minDamage as any || 10);
+              const maxD = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[0] : (weaponDef.maxDamage as any || 20);
+              const ap = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[0] : (weaponDef.armorPiercing as any || 0);
 
-                      projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[0] : (weaponDef.projectileSpeed as any || 4);
-                      projectile.acceleration = Array.isArray(weaponDef.projectileAcceleration) ? weaponDef.projectileAcceleration[0] : (weaponDef.projectileAcceleration as any || 0.15);
-                      projectile.maxSpeed = Array.isArray(weaponDef.projectileMaxSpeed) ? weaponDef.projectileMaxSpeed[0] : (weaponDef.projectileMaxSpeed as any || 12);
-                      projectile.turnSpeed = Array.isArray(weaponDef.projectileAngularVelocity) ? weaponDef.projectileAngularVelocity[0] : (weaponDef.projectileAngularVelocity as any || 0.1);
-                      projectile.damage = minD + Math.random() * (maxD - minD);
-                      projectile.armorPiercing = ap;
+              projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[0] : (weaponDef.projectileSpeed as any || 4);
+              projectile.acceleration = Array.isArray(weaponDef.projectileAcceleration) ? weaponDef.projectileAcceleration[0] : (weaponDef.projectileAcceleration as any || 0.15);
+              projectile.maxSpeed = Array.isArray(weaponDef.projectileMaxSpeed) ? weaponDef.projectileMaxSpeed[0] : (weaponDef.projectileMaxSpeed as any || 12);
+              projectile.turnSpeed = Array.isArray(weaponDef.projectileAngularVelocity) ? weaponDef.projectileAngularVelocity[0] : (weaponDef.projectileAngularVelocity as any || 0.1);
+              projectile.damage = minD + Math.random() * (maxD - minD);
+              projectile.armorPiercing = ap;
               projectile.createdAt = now;
               projectile.lifespan = 5000;
               this.state.projectiles.set(projectile.id, projectile);
@@ -512,12 +512,12 @@ export class MyRoom extends Room {
     player.targetId = "";
   }
 
-  onJoin (client: Client, options: any) {
+  onJoin(client: Client, options: any) {
     console.log(client.sessionId, "joined with options:", options);
-    
+
     const faction = factions.find(f => f.id === options.faction) || factions[0];
     const shipSpec = ships.find(s => s.id === options.ship) || ships[0];
-    
+
     const player = new Player();
     player.id = client.sessionId;
     player.faction = faction.id;
@@ -532,20 +532,20 @@ export class MyRoom extends Room {
     player.hull = shipSpec.stats.hull;
     player.armor = shipSpec.stats.armor;
     player.weaponRadius = shipSpec.stats.weaponRadius;
-    
+
     // Initialize weapon states
     if (shipSpec.weapons) {
-       shipSpec.weapons.forEach((_, i) => {
-         player.weaponSlots.push(true);
-         player.weaponLastFire.set(i.toString(), 0);
-       });
+      shipSpec.weapons.forEach((_, i) => {
+        player.weaponSlots.push(true);
+        player.weaponLastFire.set(i.toString(), 0);
+      });
     }
-    
+
     this.state.players.set(client.sessionId, player);
     this.updateMetadata();
   }
 
-  onLeave (client: Client, code: CloseCode) {
+  onLeave(client: Client, code: CloseCode) {
     console.log(client.sessionId, "left!", code);
     this.state.players.delete(client.sessionId);
     this.updateMetadata();

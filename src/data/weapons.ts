@@ -182,7 +182,7 @@ export const weapons = [
         maxRange: 1800,
         optimalRange: 1200,
         accuracy: 600,
-        reload: 2.5,
+        reload: 4,
         firingArc: 360,
     },
     {
@@ -203,7 +203,7 @@ export const weapons = [
         projectileMaxSpeed: 4,
         projectileAcceleration: 0.05,
         projectileAngularVelocity: 0.03,
-        reload: 6.0,
+        reload: 7,
         firingArc: 360,
     }
 ];
