@@ -25,6 +25,17 @@ export const ships = [
           front: 5,
           rotation: 0,
         }
+      },
+      {
+        weapon: {
+          id: 'swarm-missiles',
+          level: 1
+        },
+        mount: {
+          left: -5,
+          front: 5,
+          rotation: 0,
+        }
       }
     ]
   },

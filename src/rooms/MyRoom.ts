@@ -2,6 +2,7 @@ import { Room, Client, CloseCode } from "colyseus";
 import { MyRoomState } from "./schema/MyRoomState.js";
 import { Player } from "./schema/Player.js";
 import { Station } from "./schema/Station.js";
+import { Projectile } from "./schema/Projectile.js";
 import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
 import { weapons } from "../data/weapons.js";
@@ -230,38 +231,131 @@ export class MyRoom extends Room {
                   // FIRE!
                   player.weaponLastFire.set(i.toString(), now);
                   
-                  // 1. ROLL TO HIT
-                  const didHit = rollHitChance({
-                    accuracy,
-                    optimalRange: optRange,
-                    maxRange,
-                    distance,
-                    evasion: 0 // Placeholder until evasion is added to schema
-                  });
+                  // 1. ROLL TO HIT (Autocannons only)
+                  if (weaponDef.type !== "Missile") {
+                    const didHit = rollHitChance({
+                      accuracy,
+                      optimalRange: optRange,
+                      maxRange,
+                      distance,
+                      evasion: 0 // Placeholder until evasion is added to schema
+                    });
 
-                  if (!didHit) {
-                    console.log(`Player ${player.id} MISSED ${target.id}`);
-                    return;
-                  }
+                    if (!didHit) {
+                      console.log(`Player ${player.id} MISSED ${target.id}`);
+                      return;
+                    }
 
-                  // 2. APPLY DAMAGE (randomize between min and max)
-                  const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
-                  const hitResult = calculateHit({
-                    baseDamage: baseDmg,
-                    armor: target.armor,
-                    armorPiercing: weaponDef.armorPiercing || 0
-                  });
+                    // 2. APPLY DAMAGE (randomize between min and max)
+                    const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
+                    const hitResult = calculateHit({
+                      baseDamage: baseDmg,
+                      armor: target.armor,
+                      armorPiercing: weaponDef.armorPiercing || 0
+                    });
 
-                  target.hull -= hitResult.finalHullDamage;
-                  console.log(`Player ${player.id} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)} damage. Target hull: ${target.hull.toFixed(1)}`);
+                    target.hull -= hitResult.finalHullDamage;
+                    console.log(`Player ${player.id} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)} damage. Target hull: ${target.hull.toFixed(1)}`);
 
-                  if (target.hull <= 0) {
-                    this.respawnPlayer(target);
+                    if (target.hull <= 0) {
+                      this.respawnPlayer(target);
+                    }
+                  } else {
+                    // SPAWN MISSILE
+                    const projectile = new Projectile();
+                    projectile.id = Math.random().toString(36).substring(2, 11);
+                    projectile.type = "missile";
+                    projectile.faction = player.faction;
+                    projectile.ownerId = player.id;
+                    projectile.targetId = player.targetId;
+                    projectile.x = muzzleWorldX;
+                    projectile.y = muzzleWorldY;
+                    projectile.angle = shipAngle; // Start with ship's heading
+                    projectile.speed = 10; // Missile speed
+                    projectile.damage = minDmg + Math.random() * (maxDmg - minDmg);
+                    projectile.armorPiercing = weaponDef.armorPiercing || 0;
+                    projectile.createdAt = now;
+                    projectile.lifespan = 5000;
+
+                    this.state.projectiles.set(projectile.id, projectile);
+                    console.log(`Player ${player.id} launched missile at ${target.id}`);
                   }
                 }
               }
             }
           });
+        }
+      }
+    });
+
+    // 4. PROJECTILE UPDATE LOGIC
+    this.state.projectiles.forEach((proj, id) => {
+      const now = this.state.serverTime;
+      const age = now - proj.createdAt;
+
+      if (age > proj.lifespan) {
+        this.state.projectiles.delete(id);
+        return;
+      }
+
+      // Seeking logic
+      if (proj.type === "missile" && proj.targetId) {
+        const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId);
+        if (target) {
+            const dx = (target as any).x - proj.x;
+            const dy = (target as any).y - proj.y;
+            const targetAngle = Math.atan2(dy, dx);
+            
+            // Projectile angle is in radians, facing direction.
+            // Move forwards based on proj.angle
+            
+            // Smoother turning towards target
+            let angleDiff = targetAngle - (proj.angle - Math.PI/2);
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            
+            const turnSpeed = 0.1; // rad per tick
+            proj.angle += Math.max(-turnSpeed, Math.min(turnSpeed, angleDiff));
+
+            // Move
+            proj.x += Math.cos(proj.angle - Math.PI/2) * proj.speed; // Adjust for p5 coordinate system if needed, but let's stay consistent with ship physics
+            // Actually, ship physics uses sin/cos based on angle directly.
+            //facingX = Math.sin(player.angle); facingY = -Math.cos(player.angle);
+            // Let's stick to that.
+        }
+      }
+
+      // Movement (Independent of whether it is seeking or not)
+      proj.x += Math.sin(proj.angle) * proj.speed;
+      proj.y -= Math.cos(proj.angle) * proj.speed;
+
+      // Collision check
+      if (proj.targetId) {
+        const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId);
+        if (target) {
+            const dx = (target as any).x - proj.x;
+            const dy = (target as any).y - proj.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 30) { // Impact radius
+              const hitResult = calculateHit({
+                baseDamage: proj.damage,
+                armor: (target as any).armor || 0,
+                armorPiercing: proj.armorPiercing
+              });
+
+              (target as any).hull -= hitResult.finalHullDamage;
+              console.log(`Missile hit ${proj.targetId} for ${hitResult.finalHullDamage.toFixed(1)}`);
+              
+              if ((target as any).hull <= 0) {
+                if (this.state.players.has(proj.targetId)) {
+                  this.respawnPlayer(target as any);
+                } else {
+                  // Station destroyed? Reset hull
+                  (target as any).hull = (target as any).maxHull || 5000;
+                }
+              }
+              this.state.projectiles.delete(id);
+            }
         }
       }
     });
