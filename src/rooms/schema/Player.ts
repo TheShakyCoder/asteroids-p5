@@ -22,6 +22,7 @@ export class Player extends Schema {
   @type("number") tylium: number = 50000; // Starting capital
   @type(["string"]) equippedWeapons: string[] = [];
   @type(["number"]) weaponLevels: number[] = [];
+  @type({ map: "number" }) ownedWeapons = new MapSchema<number>();
 
   // Diagnostic properties
   @type("number") heartbeat: number = 0;

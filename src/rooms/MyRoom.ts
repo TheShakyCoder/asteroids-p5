@@ -199,13 +199,23 @@ export class MyRoom extends Room {
       if (!player || !player.isDocked) return;
 
       const weaponDef = weapons.find(w => w.id === data.weaponId);
-      if (!weaponDef || !weaponDef.tylium) return;
+      if (!weaponDef) return;
 
-      if (player.tylium >= weaponDef.tylium) {
-        player.tylium -= weaponDef.tylium;
+      const isOwned = player.ownedWeapons.has(data.weaponId);
+      const level = isOwned ? player.ownedWeapons.get(data.weaponId) : 1;
+      const cost = isOwned ? 0 : (weaponDef.tylium || 0);
+
+      if (player.tylium >= cost) {
+        player.tylium -= cost;
         player.equippedWeapons[data.slotIndex] = data.weaponId;
-        player.weaponLevels[data.slotIndex] = 1;
-        console.log(`Player ${player.id} BOUGHT ${data.weaponId} for slot ${data.slotIndex}`);
+        player.weaponLevels[data.slotIndex] = level;
+        
+        if (!isOwned) {
+          player.ownedWeapons.set(data.weaponId, 1);
+          console.log(`Player ${player.id} BOUGHT ${data.weaponId} for slot ${data.slotIndex}`);
+        } else {
+          console.log(`Player ${player.id} EQUIPPED owned ${data.weaponId} (Level ${level}) in slot ${data.slotIndex}`);
+        }
       }
     });
 
@@ -225,8 +235,10 @@ export class MyRoom extends Room {
 
       if (player.tylium >= cost) {
         player.tylium -= cost;
-        player.weaponLevels[data.slotIndex] = currentLevel + 1;
-        console.log(`Player ${player.id} UPGRADED weapon in slot ${data.slotIndex} to level ${player.weaponLevels[data.slotIndex]}`);
+        const newLevel = currentLevel + 1;
+        player.weaponLevels[data.slotIndex] = newLevel;
+        player.ownedWeapons.set(wId, newLevel);
+        console.log(`Player ${player.id} UPGRADED weapon in slot ${data.slotIndex} to level ${newLevel}`);
       }
     });
 
@@ -245,7 +257,7 @@ export class MyRoom extends Room {
       player.armor = shipSpec.stats.armor;
       player.weaponRadius = shipSpec.stats.weaponRadius;
 
-      // Reset weapons to default for the new ship
+      // Reset weapons to default for the new ship (but use owned levels if available)
       player.equippedWeapons = [];
       player.weaponLevels = [];
       player.weaponSlots = [];
@@ -254,7 +266,15 @@ export class MyRoom extends Room {
         shipSpec.weapons.forEach((w, i) => {
           player.weaponSlots.push(true);
           player.equippedWeapons.push(w.weapon.id);
-          player.weaponLevels.push(w.weapon.level || 1);
+          
+          // Use owned level if available, otherwise default to starting level
+          const ownedLevel = player.ownedWeapons.get(w.weapon.id);
+          const startLevel = ownedLevel || w.weapon.level || 1;
+          player.weaponLevels.push(startLevel);
+          
+          if (!ownedLevel) {
+            player.ownedWeapons.set(w.weapon.id, startLevel);
+          }
         });
       }
       
@@ -900,7 +920,10 @@ export class MyRoom extends Room {
         player.weaponSlots.push(true);
         player.weaponLastFire.set(i.toString(), 0);
         player.equippedWeapons.push(w.weapon.id);
-        player.weaponLevels.push(w.weapon.level || 1);
+        
+        const startLevel = w.weapon.level || 1;
+        player.weaponLevels.push(startLevel);
+        player.ownedWeapons.set(w.weapon.id, startLevel);
       });
     }
 
