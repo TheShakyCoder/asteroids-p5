@@ -3,6 +3,7 @@ import { MyRoomState } from "./schema/MyRoomState.js";
 import { Player } from "./schema/Player.js";
 import { Station } from "./schema/Station.js";
 import { Projectile } from "./schema/Projectile.js";
+import { Asteroid } from "./schema/Asteroid.js";
 import { Faction as FactionSchema } from "./schema/Faction.js";
 import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
@@ -56,6 +57,37 @@ export class MyRoom extends Room {
       station.droneNextWaveTime = Date.now(); // Start first wave immediately
       this.state.stations.set(station.id, station);
     });
+
+    // Procedural Asteroid Generation
+    const asteroidCount = this.state.asteroids || 10;
+    console.log(`Generating ${asteroidCount} asteroids...`);
+    
+    for (let i = 0; i < asteroidCount; i++) {
+        const asteroid = new Asteroid();
+        asteroid.id = `ast_${i}`;
+        
+        // Random position within map bounds
+        asteroid.x = (Math.random() - 0.5) * this.state.width;
+        asteroid.y = (Math.random() - 0.5) * this.state.height;
+        
+        // Random size between 50 and 500
+        asteroid.radius = 50 + Math.random() * 450;
+        asteroid.angle = Math.random() * Math.PI * 2;
+        
+        // Avoid spawning too close to bases (within 3000 units)
+        let tooClose = false;
+        this.state.stations.forEach(s => {
+            const dist = Math.sqrt((s.x - asteroid.x)**2 + (s.y - asteroid.y)**2);
+            if (dist < 3000) tooClose = true;
+        });
+        
+        if (tooClose) {
+            i--; // Retry
+            continue;
+        }
+        
+        this.state.asteroidObjects.set(asteroid.id, asteroid);
+    }
 
     this.onMessage("toggle-weapon", (client, index: number) => {
       const player = this.state.players.get(client.sessionId);
