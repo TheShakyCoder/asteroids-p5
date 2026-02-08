@@ -67,7 +67,7 @@ export class MyRoom extends Room {
 
       this.state.players.forEach((other) => {
         if (other.id === client.sessionId) return;
-        if (other.faction === player.faction) return;
+        if (other.faction === player.faction || other.isDead) return;
 
         const dist = Math.sqrt((other.x - player.x) ** 2 + (other.y - player.y) ** 2);
         if (dist < minDist) {
@@ -89,7 +89,7 @@ export class MyRoom extends Room {
 
       // Scan both players and stations
       this.state.players.forEach((other) => {
-        if (other.id === client.sessionId) return;
+        if (other.id === client.sessionId || other.isDead) return;
         const dist = Math.sqrt((other.x - player.x) ** 2 + (other.y - player.y) ** 2);
         if (dist < minDist) {
           minDist = dist;
@@ -110,12 +110,19 @@ export class MyRoom extends Room {
 
     this.onMessage("input", (client, input) => {
       const player = this.state.players.get(client.sessionId);
-      if (player) {
+      if (player && !player.isDead) {
         // Explicitly map inputs to ensure reference stays valid
         player.input.w = !!input.w;
         player.input.a = !!input.a;
         player.input.s = !!input.s;
         player.input.d = !!input.d;
+      }
+    });
+
+    this.onMessage("respawn", (client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player && player.isDead) {
+        this.respawnPlayer(player);
       }
     });
 
@@ -137,6 +144,13 @@ export class MyRoom extends Room {
     this.state.serverTime = Date.now();
     this.state.players.forEach((player) => {
       player.heartbeat++;
+      
+      if (player.isDead) {
+        player.vx = 0;
+        player.vy = 0;
+        return;
+      }
+
       // Find ship stats for this player
       const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
       const maxSpeed = shipSpec.stats.maxVelocity || 10;
@@ -202,9 +216,9 @@ export class MyRoom extends Room {
       if (player.y > worldHalfHeight) player.y = -worldHalfHeight;
 
       // 3. WEAPON FIRING LOGIC
-      if (player.targetId && shipSpec.weapons) {
+      if (player.targetId && shipSpec.weapons && !player.isDead) {
         const target = this.state.players.get(player.targetId) || this.state.stations.get(player.targetId);
-        if (target) {
+        if (target && !(target instanceof Player && target.isDead)) {
           shipSpec.weapons.forEach((sw, i) => {
             if (!player.weaponSlots[i]) return;
 
@@ -288,7 +302,7 @@ export class MyRoom extends Room {
 
                     if (target.hull <= 0) {
                       if (this.state.players.has(target.id)) {
-                        this.respawnPlayer(target as Player);
+                        this.handlePlayerDeath(target as Player);
                       } else {
                         // STATION DESTROYED! 
                         const stationTarget = target as Station;
@@ -397,7 +411,7 @@ export class MyRoom extends Room {
 
             if ((target as any).hull <= 0) {
               if (this.state.players.has(proj.targetId)) {
-                this.respawnPlayer(target as any);
+                this.handlePlayerDeath(target as any);
               } else if (this.state.projectiles.has(proj.targetId)) {
                 this.state.projectiles.delete(proj.targetId);
               } else {
@@ -443,7 +457,7 @@ export class MyRoom extends Room {
           let minDist = Infinity;
 
           this.state.players.forEach((p) => {
-            if (p.faction === station.faction) return;
+            if (p.faction === station.faction || p.isDead) return;
             const dist = Math.sqrt((p.x - (station.x + tw.x)) ** 2 + (p.y - (station.y + tw.y)) ** 2);
             if (dist < minDist) {
               minDist = dist;
@@ -496,7 +510,7 @@ export class MyRoom extends Room {
                 nearest.hull -= hitResult.finalHullDamage;
                 if (nearest.hull <= 0) {
                   if (this.state.players.has((nearest as any).id)) {
-                    this.respawnPlayer(nearest);
+                    this.handlePlayerDeath(nearest as Player);
                   } else {
                     this.state.projectiles.delete((nearest as any).id);
                   }
@@ -591,8 +605,25 @@ export class MyRoom extends Room {
     });
   }
 
+  handlePlayerDeath(player: Player) {
+    if (player.isDead) return;
+    console.log(`Player ${player.id} destroyed!`);
+    player.isDead = true;
+    player.hull = 0;
+    player.vx = 0;
+    player.vy = 0;
+    player.targetId = "";
+
+    // Retarget or clear projectiles targeting this player
+    this.state.projectiles.forEach(proj => {
+      if (proj.targetId === player.id) {
+        proj.targetId = ""; // Fly straight
+      }
+    });
+  }
+
   respawnPlayer(player: Player) {
-    console.log(`Player ${player.id} destroyed! Respawning...`);
+    console.log(`Respawning player ${player.id}...`);
     const faction = this.state.factions.get(player.faction);
     const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
 
@@ -608,6 +639,7 @@ export class MyRoom extends Room {
     player.angle = 0;
     player.hull = shipSpec.stats.hull;
     player.armor = shipSpec.stats.armor;
+    player.isDead = false;
     player.targetId = "";
   }
 

@@ -11,6 +11,7 @@ export class Player extends Schema {
   @type("number") vy: number = 0;
   @type("number") hull: number;
   @type("number") armor: number;
+  @type("boolean") isDead: boolean = false;
   @type("number") weaponRadius: number;
   @type(["boolean"]) weaponSlots: boolean[] = [];
   @type({ map: "number" }) weaponLastFire = new MapSchema<number>();
