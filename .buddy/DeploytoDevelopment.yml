@@ -1,0 +1,9 @@
+- pipeline: deploy-to-development
+  name: Deploy to Development
+  refs:
+  - refs/heads/master
+  fail_on_prepare_env_warning: true
+  resources: NANO
+  events:
+  - type: WEBHOOK
+  arch: ARM64
