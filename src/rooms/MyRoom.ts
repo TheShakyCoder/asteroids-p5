@@ -551,7 +551,7 @@ export class MyRoom extends Room {
       const now = this.state.serverTime;
       if (now >= station.droneNextWaveTime) {
         station.droneSpawnsRemaining = 6;
-        station.droneNextWaveTime = now + 60000; // Next wave in 1 minute
+        station.droneNextWaveTime = now + 30000; // Next wave in 1 minute
         station.droneNextSpawnTime = now;
       }
 
@@ -585,9 +585,9 @@ export class MyRoom extends Room {
           const dy = targetStation.y - drone.y;
           drone.angle = Math.atan2(dy, dx) + Math.PI / 2;
           
-          drone.speed = 1.0; // Slow travel
+          drone.speed = 1.5; // Slow travel
           drone.acceleration = 0;
-          drone.maxSpeed = 1.0;
+          drone.maxSpeed = 1.5;
           drone.turnSpeed = 0.05; // Gentle seeking
           
           drone.damage = 300; // Reduced power but many drones
