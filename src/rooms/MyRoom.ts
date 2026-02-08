@@ -62,7 +62,7 @@ export class MyRoom extends Room {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
-      let nearest: Player | null = null;
+      let nearest: any = null;
       let minDist = Infinity;
 
       this.state.players.forEach((other) => {
@@ -76,15 +76,28 @@ export class MyRoom extends Room {
         }
       });
 
+      // Include targetable projectiles (drones/missiles)
+      this.state.projectiles.forEach((proj) => {
+        if (proj.faction === player.faction) return;
+        // Only target drones or missiles (standard bullets/beams aren't targetable)
+        if (proj.type !== "drone" && proj.type !== "missile") return;
+        
+        const dist = Math.sqrt((proj.x - player.x) ** 2 + (proj.y - player.y) ** 2);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = proj;
+        }
+      });
+
       player.targetId = nearest ? (nearest as any).id : "";
-      console.log(`Player ${client.sessionId} targeting ${player.targetId || 'NOTHING'}`);
+      console.log(`Player ${client.sessionId} targeting enemy ${player.targetId || 'NOTHING'}`);
     });
 
     this.onMessage("target-object", (client) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
-      let nearest: Player | Station | null = null;
+      let nearest: any = null;
       let minDist = Infinity;
 
       // Scan both players and stations
@@ -105,7 +118,18 @@ export class MyRoom extends Room {
         }
       });
 
+      this.state.projectiles.forEach((proj) => {
+        // Targetable objects include drones and missiles
+        if (proj.type !== "drone" && proj.type !== "missile") return;
+        const dist = Math.sqrt((proj.x - player.x) ** 2 + (proj.y - player.y) ** 2);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = proj;
+        }
+      });
+
       player.targetId = nearest ? (nearest as any).id : "";
+      console.log(`Player ${client.sessionId} targeting object ${player.targetId || 'NOTHING'}`);
     });
 
     this.onMessage("input", (client, input) => {
@@ -217,7 +241,14 @@ export class MyRoom extends Room {
 
       // 3. WEAPON FIRING LOGIC
       if (player.targetId && shipSpec.weapons && !player.isDead) {
-        const target = this.state.players.get(player.targetId) || this.state.stations.get(player.targetId);
+        const target = this.state.players.get(player.targetId) || 
+                       this.state.stations.get(player.targetId) ||
+                       this.state.projectiles.get(player.targetId);
+        
+        if (!target) {
+            // console.log(`Player ${player.id} has targetId ${player.targetId} but NO TARGET FOUND`);
+        }
+
         if (target && !(target instanceof Player && target.isDead)) {
           shipSpec.weapons.forEach((sw, i) => {
             if (!player.weaponSlots[i]) return;
@@ -271,6 +302,7 @@ export class MyRoom extends Room {
 
                 const halfFovRad = (fov / 2) * Math.PI / 180;
                 if (Math.abs(angleDiff) <= halfFovRad) {
+                  // console.log(`Player ${player.id} FIRING at ${target.id} (Dist: ${distance.toFixed(1)}, Range: ${minRange}-${maxRange})`);
                   // FIRE!
                   player.weaponLastFire.set(i.toString(), now);
 
@@ -285,33 +317,31 @@ export class MyRoom extends Room {
                     });
 
                     if (!didHit) {
-                      console.log(`Player ${player.id} MISSED ${target.id}`);
+                      // console.log(`Player ${player.id} MISSED ${target.id}`);
                       return;
                     }
 
+                    console.log(`Player ${player.id} HIT ${target.id} (Type: ${target.constructor.name})`);
                     // 2. APPLY DAMAGE (randomize between min and max)
                     const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
                     const hitResult = calculateHit({
                       baseDamage: baseDmg,
-                      armor: target.armor,
+                      armor: (target as any).armor || 0,
                       armorPiercing: armorPiercing
                     });
 
                     target.hull -= hitResult.finalHullDamage;
-                    console.log(`Player ${player.id} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)} damage. Target hull: ${target.hull.toFixed(1)}`);
-
                     if (target.hull <= 0) {
                       if (this.state.players.has(target.id)) {
                         this.handlePlayerDeath(target as Player);
-                      } else {
+                      } else if (this.state.projectiles.has(target.id)) {
+                        this.state.projectiles.delete(target.id);
+                        console.log(`Player ${player.id} destroyed Projectile ${target.id}`);
+                      } else if (this.state.stations.has(target.id)) {
                         // STATION DESTROYED! 
                         const stationTarget = target as Station;
                         console.log(`STATION ${target.id} DESTROYED!`);
-
-                        // Set winner state
                         this.state.winner = (stationTarget.faction === 'humans') ? 'martians' : 'humans';
-
-                        // Reset HP (optional, for gameplay continuity or just stop state)
                         stationTarget.hull = stationTarget.maxHull;
                       }
                     }
@@ -336,6 +366,8 @@ export class MyRoom extends Room {
 
                     projectile.damage = minDmg + Math.random() * (maxDmg - minDmg);
                     projectile.armorPiercing = armorPiercing;
+                    projectile.hull = 30; // Missiles are fragile
+                    projectile.maxHull = 30;
                     projectile.createdAt = now;
                     
                     // Dynamic lifespan: enough time to reach maxRange at maxSpeed + buffer
@@ -365,7 +397,7 @@ export class MyRoom extends Room {
       }
 
       // Seeking logic
-      if (proj.type === "missile" && proj.targetId) {
+      if ((proj.type === "missile" || proj.type === "drone") && proj.targetId) {
         const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId) || this.state.projectiles.get(proj.targetId);
         if (target) {
           const dx = (target as any).x - proj.x;
@@ -466,7 +498,7 @@ export class MyRoom extends Room {
           });
 
           this.state.projectiles.forEach((proj) => {
-            if (proj.type !== "drone" || proj.faction === station.faction) return;
+            if ((proj.type !== "drone" && proj.type !== "missile") || proj.faction === station.faction) return;
             const dist = Math.sqrt((proj.x - (station.x + tw.x)) ** 2 + (proj.y - (station.y + tw.y)) ** 2);
             if (dist < minDist) {
               minDist = dist;
@@ -535,6 +567,8 @@ export class MyRoom extends Room {
               
               projectile.damage = minDmg + Math.random() * (maxDmg - minDmg);
               projectile.armorPiercing = armorPiercing;
+              projectile.hull = 30; 
+              projectile.maxHull = 30;
               projectile.createdAt = now;
 
               // Dynamic lifespan
@@ -592,8 +626,8 @@ export class MyRoom extends Room {
           
           drone.damage = 300; // Reduced power but many drones
           drone.armorPiercing = 40;
-          drone.hull = 400; // Destructible
-          drone.maxHull = 400;
+          drone.hull = 60; // Destructible
+          drone.maxHull = 60;
           drone.armor = 5;
           drone.createdAt = now;
           drone.lifespan = 3600000; // 1 hour (plenty of time to travel)
