@@ -628,36 +628,54 @@ export class MyRoom extends Room {
       proj.y -= Math.cos(proj.angle) * proj.speed;
 
       // Collision check
-      if (proj.targetId) {
-        const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId) || this.state.projectiles.get(proj.targetId);
-        if (target) {
-          const dx = (target as any).x - proj.x;
-          const dy = (target as any).y - proj.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 30) { // Impact radius
-            const hitResult = calculateHit({
-              baseDamage: proj.damage,
-              armor: (target as any).armor || 0,
-              armorPiercing: proj.armorPiercing
-            });
+      // --- BROAD COLLISION CHECK ---
+      // Drones and Missiles explode on contact with any enemy player or station
+      if (proj.type === "drone" || proj.type === "missile") {
+        let hitDetected = false;
 
-            (target as any).hull -= hitResult.finalHullDamage;
-            console.log(`Missile hit ${proj.targetId} for ${hitResult.finalHullDamage.toFixed(1)}`);
-
-            if ((target as any).hull <= 0) {
-              if (this.state.players.has(proj.targetId)) {
-                this.handlePlayerDeath(target as any);
-              } else if (this.state.projectiles.has(proj.targetId)) {
-                this.state.projectiles.delete(proj.targetId);
-              } else {
-                // Station destroyed? Reset hull
-                const station = target as Station;
-                station.hull = station.maxHull;
-                console.log(`STATION ${proj.targetId} DESTROYED!`);
-              }
-            }
-            this.state.projectiles.delete(id);
+        // Check players
+        this.state.players.forEach((p) => {
+          if (hitDetected || p.isDead || p.faction === proj.faction || p.isDocked) return;
+          
+          const dx = p.x - proj.x;
+          const dy = p.y - proj.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          
+          if (dist < 40) { // Impact radius for ships
+            this.processProjectileHit(proj, p);
+            hitDetected = true;
           }
+        });
+
+        // Check stations
+        if (!hitDetected) {
+          this.state.stations.forEach((s) => {
+            if (hitDetected || s.faction === proj.faction) return;
+            
+            const dx = s.x - proj.x;
+            const dy = s.y - proj.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist < 300) { // Large impact radius for stations
+              this.processProjectileHit(proj, s);
+              hitDetected = true;
+            }
+          });
+        }
+
+        // If it had a targetId that was a projectile, check that too
+        if (!hitDetected && proj.targetId) {
+            const potentialTarget = this.state.projectiles.get(proj.targetId);
+            if (potentialTarget) {
+                const dx = potentialTarget.x - proj.x;
+                const dy = potentialTarget.y - proj.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 30) {
+                    this.state.projectiles.delete(potentialTarget.id);
+                    this.state.projectiles.delete(proj.id);
+                    hitDetected = true;
+                    console.log(`Projectile ${proj.id} intercepted ${potentialTarget.id}`);
+                }
+            }
         }
       }
     });
@@ -840,6 +858,31 @@ export class MyRoom extends Room {
         }
       }
     });
+  }
+
+  private processProjectileHit(proj: Projectile, target: any) {
+    const hitResult = calculateHit({
+      baseDamage: proj.damage,
+      armor: target.armor || 0,
+      armorPiercing: proj.armorPiercing || 0
+    });
+
+    target.hull -= hitResult.finalHullDamage;
+    console.log(`${proj.type} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)}`);
+
+    if (target.hull <= 0) {
+      if (this.state.players.has(target.id)) {
+        this.handlePlayerDeath(target as Player);
+      } else if (this.state.stations.has(target.id)) {
+        // Station destroyed? 
+        const station = target as Station;
+        console.log(`STATION ${target.id} DESTROYED!`);
+        this.state.winner = (station.faction === 'humans') ? 'martians' : 'humans';
+        station.hull = station.maxHull; // Quick reset or maintain state
+      }
+    }
+    
+    this.state.projectiles.delete(proj.id);
   }
 
   handlePlayerDeath(player: Player) {
