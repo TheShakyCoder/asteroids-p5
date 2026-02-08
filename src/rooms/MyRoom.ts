@@ -3,6 +3,7 @@ import { MyRoomState } from "./schema/MyRoomState.js";
 import { Player } from "./schema/Player.js";
 import { Station } from "./schema/Station.js";
 import { Projectile } from "./schema/Projectile.js";
+import { Faction as FactionSchema } from "./schema/Faction.js";
 import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
 import { weapons } from "../data/weapons.js";
@@ -25,8 +26,19 @@ export class MyRoom extends Room {
     console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
     this.setMetadata({ factionCounts: {} });
 
-    // Initialize Faction Bases
+    // Initialize Factions and Bases
     factions.forEach(f => {
+      // 1. Create the Faction state
+      const faction = new FactionSchema();
+      faction.id = f.id;
+      faction.name = f.name;
+      faction.color = f.color;
+      faction.description = f.description;
+      faction.spawnX = f.spawn.x;
+      faction.spawnY = f.spawn.y;
+      this.state.factions.set(faction.id, faction);
+
+      // 2. Create the associated base station
       const station = new Station();
       station.id = `base_${f.id}`;
       station.faction = f.id;
@@ -229,13 +241,14 @@ export class MyRoom extends Room {
               // Extract stats based on level
               const optRange = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[lIdx] : (weaponDef.optimalRange || 500);
               const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[lIdx] : (weaponDef.maxRange || 1000);
+              const minRange = Array.isArray(weaponDef.minRange) ? weaponDef.minRange[lIdx] : (weaponDef.minRange || 0);
               const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[lIdx] : 10;
               const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[lIdx] : 10;
               const accuracy = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[lIdx] : (weaponDef.accuracy || 400);
               const armorPiercing = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[lIdx] : (weaponDef.armorPiercing || 0);
               const fov = Array.isArray(weaponDef.firingArc) ? weaponDef.firingArc[lIdx] : (weaponDef.firingArc || 45);
 
-              if (distance <= maxRange) {
+              if (distance >= minRange && distance <= maxRange) {
                 // Angle check
                 const weaponWorldAngle = shipAngle + (sw.mount.rotation * Math.PI / 180) - (Math.PI / 2);
                 const angleToTarget = Math.atan2(dy, dx);
@@ -310,7 +323,11 @@ export class MyRoom extends Room {
                     projectile.damage = minDmg + Math.random() * (maxDmg - minDmg);
                     projectile.armorPiercing = armorPiercing;
                     projectile.createdAt = now;
-                    projectile.lifespan = 5000;
+                    
+                    // Dynamic lifespan: enough time to reach maxRange at maxSpeed + buffer
+                    // Assuming average 50ms simulation interval
+                    const ticksToTarget = (maxRange / projectile.maxSpeed) * 1.5;
+                    projectile.lifespan = Math.max(5000, ticksToTarget * 50);
 
                     this.state.projectiles.set(projectile.id, projectile);
                     console.log(`Player ${player.id} launched missile at ${target.id}`);
@@ -443,7 +460,16 @@ export class MyRoom extends Room {
             }
           });
 
-          if (nearest && minDist <= (weaponDef.maxRange as any || 1000)) {
+          // Extract stats (Station weapons are currently level 1 equivalent)
+          const minRange = Array.isArray(weaponDef.minRange) ? weaponDef.minRange[0] : (weaponDef.minRange as any || 0);
+          const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[0] : (weaponDef.maxRange as any || 1000);
+          const optRange = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[0] : (weaponDef.optimalRange as any || 500);
+          const accuracy = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[0] : (weaponDef.accuracy as any || 400);
+          const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[0] : (weaponDef.minDamage as any || 10);
+          const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[0] : (weaponDef.maxDamage as any || 20);
+          const armorPiercing = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[0] : (weaponDef.armorPiercing as any || 0);
+
+          if (nearest && minDist >= minRange && minDist <= maxRange) {
             // FIRE!
             station.weaponLastFire.set(turretId, now);
             const dx = nearest.x - (station.x + tw.x);
@@ -452,26 +478,20 @@ export class MyRoom extends Room {
             const angle = Math.atan2(dy, dx) + Math.PI / 2;
 
             if (weaponDef.type !== "Missile") {
-              const acc = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[0] : (weaponDef.accuracy as any || 400);
-              const optR = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[0] : (weaponDef.optimalRange as any || 500);
-              const maxR = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[0] : (weaponDef.maxRange as any || 1000);
-
               const didHit = rollHitChance({
-                accuracy: acc,
-                optimalRange: optR,
-                maxRange: maxR,
+                accuracy,
+                optimalRange: optRange,
+                maxRange,
                 distance: minDist,
                 evasion: 0
               });
 
               if (didHit) {
-                const minDmg = weaponDef.minDamage as any || 10;
-                const maxDmg = weaponDef.maxDamage as any || 10;
                 const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
                 const hitResult = calculateHit({
                   baseDamage: baseDmg,
                   armor: (nearest as any).armor || 0,
-                  armorPiercing: weaponDef.armorPiercing as any || 0
+                  armorPiercing: armorPiercing
                 });
                 nearest.hull -= hitResult.finalHullDamage;
                 if (nearest.hull <= 0) {
@@ -493,18 +513,20 @@ export class MyRoom extends Room {
               projectile.x = station.x + tw.x;
               projectile.y = station.y + tw.y;
               projectile.angle = angle;
-              const minD = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[0] : (weaponDef.minDamage as any || 10);
-              const maxD = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[0] : (weaponDef.maxDamage as any || 20);
-              const ap = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[0] : (weaponDef.armorPiercing as any || 0);
 
               projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[0] : (weaponDef.projectileSpeed as any || 4);
               projectile.acceleration = Array.isArray(weaponDef.projectileAcceleration) ? weaponDef.projectileAcceleration[0] : (weaponDef.projectileAcceleration as any || 0.15);
               projectile.maxSpeed = Array.isArray(weaponDef.projectileMaxSpeed) ? weaponDef.projectileMaxSpeed[0] : (weaponDef.projectileMaxSpeed as any || 12);
               projectile.turnSpeed = Array.isArray(weaponDef.projectileAngularVelocity) ? weaponDef.projectileAngularVelocity[0] : (weaponDef.projectileAngularVelocity as any || 0.1);
-              projectile.damage = minD + Math.random() * (maxD - minD);
-              projectile.armorPiercing = ap;
+              
+              projectile.damage = minDmg + Math.random() * (maxDmg - minDmg);
+              projectile.armorPiercing = armorPiercing;
               projectile.createdAt = now;
-              projectile.lifespan = 5000;
+
+              // Dynamic lifespan
+              const ticksToTarget = (maxRange / projectile.maxSpeed) * 1.5;
+              projectile.lifespan = Math.max(5000, ticksToTarget * 50);
+
               this.state.projectiles.set(projectile.id, projectile);
             }
           }
@@ -571,13 +593,16 @@ export class MyRoom extends Room {
 
   respawnPlayer(player: Player) {
     console.log(`Player ${player.id} destroyed! Respawning...`);
-    const faction = factions.find(f => f.id === player.faction) || factions[0];
+    const faction = this.state.factions.get(player.faction);
     const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
 
     const angle = Math.random() * Math.PI * 2;
     const spawnRadius = 500;
-    player.x = faction.spawn.x + Math.cos(angle) * spawnRadius;
-    player.y = faction.spawn.y + Math.sin(angle) * spawnRadius;
+    const spawnX = faction ? faction.spawnX : 0;
+    const spawnY = faction ? faction.spawnY : 0;
+
+    player.x = spawnX + Math.cos(angle) * spawnRadius;
+    player.y = spawnY + Math.sin(angle) * spawnRadius;
     player.vx = 0;
     player.vy = 0;
     player.angle = 0;
@@ -589,17 +614,21 @@ export class MyRoom extends Room {
   onJoin(client: Client, options: any) {
     console.log(client.sessionId, "joined with options:", options);
 
-    const faction = factions.find(f => f.id === options.faction) || factions[0];
+    const factionId = options.faction || "humans";
+    const faction = this.state.factions.get(factionId);
     const shipSpec = ships.find(s => s.id === options.ship) || ships[0];
 
     const player = new Player();
     player.id = client.sessionId;
-    player.faction = faction.id;
+    player.faction = factionId;
     player.shipClass = shipSpec.id;
     const angle = Math.random() * Math.PI * 2;
     const spawnRadius = 500;
-    player.x = faction.spawn.x + Math.cos(angle) * spawnRadius;
-    player.y = faction.spawn.y + Math.sin(angle) * spawnRadius;
+    const spawnX = faction ? faction.spawnX : 0;
+    const spawnY = faction ? faction.spawnY : 0;
+
+    player.x = spawnX + Math.cos(angle) * spawnRadius;
+    player.y = spawnY + Math.sin(angle) * spawnRadius;
     player.angle = 0;
     player.vx = 0;
     player.vy = 0;

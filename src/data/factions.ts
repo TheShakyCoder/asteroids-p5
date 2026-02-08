@@ -4,13 +4,13 @@ export const factions = [
     name: "Terran Union",
     description: "Adaptable and resilient survivors from Earth. Balanced ship stats.",
     color: "#4facfe",
-    spawn: { x: -1000, y: -1000 }
+    spawn: { x: -2000, y: -2000 }
   },
   {
     id: "martians",
     name: "Martian Sovereignty",
     description: "Advanced technological society from the Red Planet. Higher speed and maneuverability.",
     color: "#ff3b30",
-    spawn: { x: 1000, y: 1000 }
+    spawn: { x: 2000, y: 2000 }
   }
 ];

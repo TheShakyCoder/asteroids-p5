@@ -94,6 +94,10 @@ const server = defineServer({
             res.json(data);
         });
 
+        app.get("/api/weapons", (req, res) => {
+            res.json(weapons);
+        });
+
         app.get("/hi", (req, res) => {
             res.send("It's time to kick ass and chew bubblegum!");
         });

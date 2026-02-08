@@ -196,7 +196,7 @@ export const weapons = [
         maxDamage: 250,
         armorPiercing: 50,
         minRange: 400,
-        maxRange: 3500,
+        maxRange: 3000,
         optimalRange: 2200,
         accuracy: 450,
         projectileSpeed: 1,
