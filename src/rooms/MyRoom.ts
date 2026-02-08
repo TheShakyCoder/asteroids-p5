@@ -592,8 +592,8 @@ export class MyRoom extends Room {
           
           drone.damage = 300; // Reduced power but many drones
           drone.armorPiercing = 40;
-          drone.hull = 30; // Destructible
-          drone.maxHull = 30;
+          drone.hull = 400; // Destructible
+          drone.maxHull = 400;
           drone.armor = 5;
           drone.createdAt = now;
           drone.lifespan = 3600000; // 1 hour (plenty of time to travel)
