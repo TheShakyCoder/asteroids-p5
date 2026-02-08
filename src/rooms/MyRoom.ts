@@ -252,7 +252,8 @@ export class MyRoom extends Room {
                        this.state.projectiles.get(player.targetId);
         
         if (!target) {
-            // console.log(`Player ${player.id} has targetId ${player.targetId} but NO TARGET FOUND`);
+            // Target is dead or gone, clear it
+            player.targetId = "";
         }
 
         if (target && !(target instanceof Player && target.isDead)) {
