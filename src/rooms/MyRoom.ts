@@ -24,7 +24,13 @@ export class MyRoom extends Room {
 
   onCreate(options: any) {
     console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
-    this.setMetadata({ factionCounts: {} });
+    this.setMetadata({ 
+      name: options.name || "Default Sector",
+      factionCounts: {} 
+    });
+
+    // Persistent sector management
+    this.autoDispose = false;
 
     // Initialize Factions and Bases
     factions.forEach(f => {

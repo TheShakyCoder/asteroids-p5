@@ -55,24 +55,8 @@ const server = defineServer({
 
         app.get("/api/rooms", async (req, res) => {
             const rooms = await matchMaker.query({});
+            console.log("API: Queried rooms:", rooms.length);
             res.json(rooms);
-        });
-
-        app.post("/api/rooms", async (req, res) => {
-            const options = req.body || {};
-            const room = await matchMaker.createRoom("my_room", options);
-            res.json(room);
-        });
-
-        app.delete("/api/rooms/:id", async (req, res) => {
-            const roomId = req.params.id;
-            const roomInstance = matchMaker.getLocalRoomById(roomId);
-            if (roomInstance) {
-                await roomInstance.disconnect();
-                res.json({ success: true });
-            } else {
-                res.status(404).json({ success: false, error: "Room not found or not active on this node." });
-            }
         });
 
         app.get("/api/factions", (req, res) => {
@@ -121,6 +105,25 @@ const server = defineServer({
             if (res.headersSent) return;
             res.sendFile(path.join(clientDist, "index.html"));
         });
+
+        // --- BOOTSTRAP INITIAL ROOM ---
+        // Ensuring a single global game sector exists
+        setTimeout(async () => {
+            const rooms = await matchMaker.query({});
+            const hasSector1 = rooms.some(r => r.metadata && r.metadata.name === "Sector 1");
+            
+            if (!hasSector1) {
+                console.log("Bootstrap: Initializing Sector 1...");
+                try {
+                    await matchMaker.create("my_room", { name: "Sector 1" });
+                    console.log("Bootstrap: Sector 1 created.");
+                } catch (e) {
+                    console.error("Bootstrap: Error creating room:", e);
+                }
+            } else {
+                console.log("Bootstrap: Sector 1 already active.");
+            }
+        }, 1000);
     }
 
 });
