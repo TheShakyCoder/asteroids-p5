@@ -16,6 +16,12 @@ export class Player extends Schema {
   @type(["boolean"]) weaponSlots: boolean[] = [];
   @type({ map: "number" }) weaponLastFire = new MapSchema<number>();
   @type("string") targetId: string = "";
+  @type("boolean") isDocking: boolean = false;
+  @type("number") dockingStartTime: number = 0;
+  @type("boolean") isDocked: boolean = false;
+  @type("number") tylium: number = 50000; // Starting capital
+  @type(["string"]) equippedWeapons: string[] = [];
+  @type(["number"]) weaponLevels: number[] = [];
 
   // Diagnostic properties
   @type("number") heartbeat: number = 0;
