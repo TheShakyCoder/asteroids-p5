@@ -693,103 +693,131 @@ export class MyRoom extends Room {
 
     // 5. STATION AUTONOMOUS LOGIC
     this.state.stations.forEach((station) => {
+      const now = this.state.serverTime;
+      
+      // Centralized Targeting Logic
+      let currentTarget: any = null;
+      if (station.targetId) {
+        currentTarget = this.state.players.get(station.targetId) || this.state.projectiles.get(station.targetId);
+        // Validate target
+        if (currentTarget) {
+           const dist = Math.sqrt((currentTarget.x - station.x) ** 2 + (currentTarget.y - station.y) ** 2);
+           if (currentTarget.isDead || currentTarget.isDocked || dist > 2500) {
+             station.targetId = "";
+             currentTarget = null;
+           }
+        } else {
+          station.targetId = "";
+        }
+      }
+
+      if (!currentTarget) {
+        let nearest: any = null;
+        let minDist = 2500; // Search range from center
+
+        this.state.players.forEach((p) => {
+          if (p.faction === station.faction || p.isDead || p.isDocked) return;
+          const dist = Math.sqrt((p.x - station.x) ** 2 + (p.y - station.y) ** 2);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = p;
+          }
+        });
+
+        this.state.projectiles.forEach((proj) => {
+          if ((proj.type !== "drone" && proj.type !== "missile") || proj.faction === station.faction) return;
+          const dist = Math.sqrt((proj.x - station.x) ** 2 + (proj.y - station.y) ** 2);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = proj;
+          }
+        });
+        
+        if (nearest) {
+          station.targetId = nearest.id;
+          currentTarget = nearest;
+        }
+      }
+
       // Firing logic for corner turrets
       const turretWeapons = [
-        { type: "sta-b1-sentinel", x: -250, y: -35 }, // TL AC
-        { type: "sta-m1-goliath", x: -250, y: -35 },  // TL Missile
-        { type: "sta-b1-sentinel", x: 250, y: -35 },  // TR AC
-        { type: "sta-m1-goliath", x: 250, y: -35 },   // TR Missile
-        { type: "sta-b1-sentinel", x: -250, y: 35 },  // BL AC
-        { type: "sta-m1-goliath", x: -250, y: 35 },   // BL Missile
-        { type: "sta-b1-sentinel", x: 250, y: 35 },   // BR AC
-        { type: "sta-m1-goliath", x: 250, y: 35 }     // BR Missile
+        { type: "sta-b1-sentinel", x: -station.width / 2, y: -station.height / 2 },
+        { type: "sta-m1-goliath", x: -station.width / 2, y: -station.height / 2 },
+        { type: "sta-b1-sentinel", x: station.width / 2, y: -station.height / 2 },
+        { type: "sta-m1-goliath", x: station.width / 2, y: -station.height / 2 },
+        { type: "sta-b1-sentinel", x: -station.width / 4, y: station.height / 2 },
+        { type: "sta-m1-goliath", x: -station.width / 4, y: station.height / 2 },
+        { type: "sta-b1-sentinel", x: station.width / 4, y: station.height / 2 },
+        { type: "sta-m1-goliath", x: station.width / 4, y: station.height / 2 }
       ];
 
-      turretWeapons.forEach((tw, idx) => {
-        const weaponDef = weapons.find(w => w.id === tw.type);
-        if (!weaponDef) return;
+      if (currentTarget) {
+        turretWeapons.forEach((tw, idx) => {
+          const weaponDef = weapons.find(w => w.id === tw.type);
+          if (!weaponDef) return;
 
-        const turretId = `${station.id}_t${idx}`;
-        const now = this.state.serverTime;
-        const lastFire = station.weaponLastFire.get(turretId) || 0;
-        const reload = Array.isArray(weaponDef.reload) ? weaponDef.reload[0] : (weaponDef.reload as any || 1);
-        const reloadMs = reload * 1000;
+          const turretId = `${station.id}_t${idx}`;
+          const lastFire = station.weaponLastFire.get(turretId) || 0;
+          const reload = Array.isArray(weaponDef.reload) ? weaponDef.reload[0] : (weaponDef.reload as any || 1);
+          const reloadMs = reload * 1000;
 
-        if (now - lastFire >= reloadMs) {
-          // Find nearest enemy player or drone
-          let nearest: any = null;
-          let minDist = Infinity;
-
-          this.state.players.forEach((p) => {
-            if (p.faction === station.faction || p.isDead || p.isDocked) return;
-            const dist = Math.sqrt((p.x - (station.x + tw.x)) ** 2 + (p.y - (station.y + tw.y)) ** 2);
-            if (dist < minDist) {
-              minDist = dist;
-              nearest = p;
-            }
-          });
-
-          this.state.projectiles.forEach((proj) => {
-            if ((proj.type !== "drone" && proj.type !== "missile") || proj.faction === station.faction) return;
-            const dist = Math.sqrt((proj.x - (station.x + tw.x)) ** 2 + (proj.y - (station.y + tw.y)) ** 2);
-            if (dist < minDist) {
-              minDist = dist;
-              nearest = proj;
-            }
-          });
-
-          // Extract stats (Station weapons are currently level 1 equivalent)
-          const minRange = Array.isArray(weaponDef.minRange) ? weaponDef.minRange[0] : (weaponDef.minRange as any || 0);
-          const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[0] : (weaponDef.maxRange as any || 1000);
-          const optRange = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[0] : (weaponDef.optimalRange as any || 500);
-          const accuracy = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[0] : (weaponDef.accuracy as any || 400);
-          const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[0] : (weaponDef.minDamage as any || 10);
-          const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[0] : (weaponDef.maxDamage as any || 20);
-          const armorPiercing = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[0] : (weaponDef.armorPiercing as any || 0);
-
-          if (nearest && minDist >= minRange && minDist <= maxRange) {
-            // FIRE!
-            station.weaponLastFire.set(turretId, now);
-            const dx = nearest.x - (station.x + tw.x);
-            const dy = nearest.y - (station.y + tw.y);
-            // Weapon angle faces target
+          if (now - lastFire >= reloadMs) {
+            const turretWorldX = station.x + (tw.x * Math.cos(station.angle) - tw.y * Math.sin(station.angle));
+            const turretWorldY = station.y + (tw.x * Math.sin(station.angle) + tw.y * Math.cos(station.angle));
+            const distToTarget = Math.sqrt((currentTarget.x - turretWorldX) ** 2 + (currentTarget.y - turretWorldY) ** 2);
+            const dx = currentTarget.x - turretWorldX;
+            const dy = currentTarget.y - turretWorldY;
             const angle = Math.atan2(dy, dx) + Math.PI / 2;
 
+            // FIRE!
+            station.weaponLastFire.set(turretId, now);
+
             if (weaponDef.type === "Autocannon") {
+              const optRange = Array.isArray(weaponDef.optimalRange) ? weaponDef.optimalRange[0] : (weaponDef.optimalRange as any || 500);
+              const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[0] : (weaponDef.maxRange as any || 1000);
+              const accuracy = Array.isArray(weaponDef.accuracy) ? weaponDef.accuracy[0] : (weaponDef.accuracy as any || 400);
               const didHit = rollHitChance({
                 accuracy,
                 optimalRange: optRange,
                 maxRange,
-                distance: minDist,
+                distance: distToTarget,
                 evasion: 0
               });
 
               if (didHit) {
+                const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[0] : (weaponDef.minDamage as any || 10);
+                const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[0] : (weaponDef.maxDamage as any || 20);
+                const armorPiercing = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[0] : (weaponDef.armorPiercing as any || 0);
                 const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
                 const hitResult = calculateHit({
                   baseDamage: baseDmg,
-                  armor: (nearest as any).armor || 0,
+                  armor: (currentTarget as any).armor || 0,
                   armorPiercing: armorPiercing
                 });
-                nearest.hull -= hitResult.finalHullDamage;
-                if (nearest.hull <= 0) {
-                  if (this.state.players.has((nearest as any).id)) {
-                    this.handlePlayerDeath(nearest as Player);
+                currentTarget.hull -= hitResult.finalHullDamage;
+                if (currentTarget.hull <= 0) {
+                  if (this.state.players.has(currentTarget.id)) {
+                    this.handlePlayerDeath(currentTarget as Player);
                   } else {
-                    this.state.projectiles.delete((nearest as any).id);
+                    this.state.projectiles.delete(currentTarget.id);
                   }
+                  station.targetId = "";
                 }
               }
             } else if (weaponDef.type === "Missile") {
-              // SPAWN MISSILE
+              const maxRange = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[0] : (weaponDef.maxRange as any || 1000);
+              const armorPiercing = Array.isArray(weaponDef.armorPiercing) ? weaponDef.armorPiercing[0] : (weaponDef.armorPiercing as any || 0);
+              const minDmg = Array.isArray(weaponDef.minDamage) ? weaponDef.minDamage[0] : (weaponDef.minDamage as any || 10);
+              const maxDmg = Array.isArray(weaponDef.maxDamage) ? weaponDef.maxDamage[0] : (weaponDef.maxDamage as any || 20);
+
               const projectile = new Projectile();
               projectile.id = `M_${Math.random().toString(8).substring(2, 9)}`;
               projectile.type = "missile";
               projectile.faction = station.faction;
               projectile.ownerId = station.id;
-              projectile.targetId = nearest.id;
-              projectile.x = station.x + tw.x;
-              projectile.y = station.y + tw.y;
+              projectile.targetId = currentTarget.id;
+              projectile.x = turretWorldX;
+              projectile.y = turretWorldY;
               projectile.angle = angle;
 
               projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[0] : (weaponDef.projectileSpeed as any || 4);
@@ -803,18 +831,16 @@ export class MyRoom extends Room {
               projectile.maxHull = 30;
               projectile.createdAt = now;
 
-              // Dynamic lifespan
               const ticksToTarget = (maxRange / projectile.maxSpeed) * 1.5;
               projectile.lifespan = Math.max(5000, ticksToTarget * 50);
 
               this.state.projectiles.set(projectile.id, projectile);
             }
           }
-        }
-      });
+        });
+      }
 
       // --- DRONE SWARM LOGIC ---
-      const now = this.state.serverTime;
       if (now >= station.droneNextWaveTime) {
         station.droneSpawnsRemaining = 6;
         station.droneNextWaveTime = now + 30000; // Next wave in 1 minute
@@ -894,10 +920,9 @@ export class MyRoom extends Room {
             // Station destroyed? 
             const station = target as Station;
             console.log(`STATION ${target.id} DESTROYED by ${attacker.id}!`);
-            this.state.winner = (station.faction === 'humans') ? 'martians' : 'humans';
+            this.triggerGameOver((station.faction === 'humans') ? 'martians' : 'humans');
             attacker.tylium += 10000;
             console.log(`Player ${attacker.id} awarded 10000 Tylium for destroying Station ${target.id}`);
-            station.hull = station.maxHull; // Quick reset or maintain state
           }
       } else {
           // Non-player attacker (e.g. station turret)
@@ -906,13 +931,27 @@ export class MyRoom extends Room {
           } else if (this.state.stations.has(target.id)) {
             const station = target as Station;
             console.log(`STATION ${target.id} DESTROYED!`);
-            this.state.winner = (station.faction === 'humans') ? 'martians' : 'humans';
-            station.hull = station.maxHull;
+            this.triggerGameOver((station.faction === 'humans') ? 'martians' : 'humans');
           }
       }
     }
     
     this.state.projectiles.delete(proj.id);
+  }
+
+  private triggerGameOver(winner: string) {
+    if (this.state.gameStatus === "gameover") return;
+    
+    this.state.winner = winner;
+    this.state.gameStatus = "gameover";
+    this.state.gameOverTime = this.state.serverTime + 60000; // 60s from now
+
+    console.log(`GAME OVER! Winner: ${winner}. Room will be disposed in 60s.`);
+
+    this.clock.setTimeout(() => {
+      console.log("60 seconds elapsed. Disconnecting all clients and disposing room.");
+      this.disconnect();
+    }, 60000);
   }
 
   handlePlayerDeath(player: Player) {

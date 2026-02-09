@@ -11,6 +11,7 @@ export class Station extends Schema {
   @type("number") maxHull: number = 40000;
   @type("number") armor: number = 100; // Bases are heavy
   @type({ map: "number" }) weaponLastFire = new MapSchema<number>();
+  @type("string") targetId: string = "";
   @type("number") angle: number = 0;
 
   // Drone logic

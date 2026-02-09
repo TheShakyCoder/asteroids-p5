@@ -40,6 +40,9 @@ const isDead = ref(false);
 const cameraRotationActive = ref(false);
 const isDocked = ref(false);
 const myPlayer = ref(null);
+const gameOverTimeLeft = ref(0);
+const gameStatus = ref("active");
+const winner = ref("");
 
 const targetEntity = computed(() => {
   if (!myPlayer.value || !room || !room.state) return 'NONE';
@@ -226,6 +229,12 @@ const connect = async () => {
         myPlayer.value = { ...me };
         isDead.value = me.isDead;
         isDocked.value = me.isDocked;
+      }
+
+      gameStatus.value = state.gameStatus;
+      winner.value = state.winner;
+      if (state.gameOverTime > 0) {
+        gameOverTimeLeft.value = Math.max(0, state.gameOverTime - state.serverTime);
       }
     });
 
@@ -803,14 +812,19 @@ onUnmounted(() => {
 
       <!-- Death/Respawn UI -->
       <transition name="fade">
-        <div v-if="isDead" class="respawn-overlay">
-          <div class="respawn-card">
-            <h2>SHIP DESTROYED</h2>
-            <p>Your vessel has been lost in action.</p>
-            <div class="respawn-stats">
-              <!-- Optional: show session stats here -->
+        <div v-if="gameStatus === 'gameover'" class="gameover-overlay">
+          <div class="gameover-card" :class="winner === props.faction ? 'victory' : 'defeat'">
+            <h1 v-if="winner === props.faction">VICTORY</h1>
+            <h1 v-else>DEFEAT</h1>
+            <p v-if="winner === props.faction">The station has been destroyed. Your faction is victorious!</p>
+            <p v-else>Your station has fallen. The sector is lost.</p>
+            
+            <div class="countdown-section">
+              <div class="countdown-label">RETURNING TO LOBBY IN</div>
+              <div class="countdown-value">{{ Math.ceil(gameOverTimeLeft / 1000) }}s</div>
             </div>
-            <button @click="sendRespawn" class="respawn-btn">CLONE & RESUPPLY</button>
+            
+            <button @click="emit('leave')" class="lobby-btn">RETURN TO LOBBY NOW</button>
           </div>
         </div>
       </transition>
@@ -991,13 +1005,95 @@ onUnmounted(() => {
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.5s;
+.gameover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(10px);
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.gameover-card {
+  text-align: center;
+  padding: 60px;
+  border: 4px solid #fff;
+  background: rgba(20, 20, 20, 0.95);
+  box-shadow: 0 0 50px rgba(255, 255, 255, 0.2);
+  max-width: 600px;
+  width: 100%;
+}
+
+.gameover-card.victory {
+  border-color: #4ade80;
+  box-shadow: 0 0 50px rgba(74, 222, 128, 0.3);
+}
+
+.gameover-card.defeat {
+  border-color: #ef4444;
+  box-shadow: 0 0 50px rgba(239, 68, 68, 0.3);
+}
+
+.gameover-card h1 {
+  font-size: 5rem;
+  font-weight: 900;
+  margin-bottom: 10px;
+  letter-spacing: 0.5rem;
+}
+
+.victory h1 {
+  color: #4ade80;
+  text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+}
+
+.defeat h1 {
+  color: #ef4444;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
+.gameover-card p {
+  color: #ccc;
+  font-size: 1.4rem;
+  margin-bottom: 40px;
+}
+
+.countdown-section {
+  margin-bottom: 40px;
+}
+
+.countdown-label {
+  font-size: 0.9rem;
+  color: #888;
+  letter-spacing: 0.2rem;
+  margin-bottom: 10px;
+}
+
+.countdown-value {
+  font-size: 3rem;
+  font-family: monospace;
+  font-weight: bold;
+  color: #fff;
+}
+
+.lobby-btn {
+  background: #fff;
+  color: #000;
+  border: none;
+  padding: 15px 40px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.1rem;
+}
+
+.lobby-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
 }
 </style>

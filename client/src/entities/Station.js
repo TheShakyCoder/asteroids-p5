@@ -9,6 +9,7 @@ export class Station extends Entity {
     this.maxHull = data.maxHull;
     this.armor = data.armor;
     this.weaponLastFire = data.weaponLastFire || {};
+    this.targetId = data.targetId || "";
   }
 
   update(data) {
@@ -17,6 +18,7 @@ export class Station extends Entity {
     this.maxHull = data.maxHull;
     this.armor = data.armor;
     this.weaponLastFire = data.weaponLastFire || {};
+    this.targetId = data.targetId || "";
   }
 
   draw(p, zoom, factionColor, isTargeted, roomState, camAngle = 0) {
@@ -44,18 +46,12 @@ export class Station extends Entity {
     p.pop();
 
     if (roomState) {
-      this.drawDefense(p, zoom, factionColor, roomState);
+      this.drawDefense(p, factionColor, roomState);
     }
   }
 
   drawHUD(p, zoom, factionColor, isTargeted) {
     p.push();
-    // No translation or rotation here anymore, using station's local space
-    // p.noStroke();
-    // p.fill(factionColor);
-    // p.textSize(20 / zoom);
-    // p.textAlign(p.CENTER, p.CENTER);
-    // p.text(this.faction === 'humans' ? 'TERRAN STATION' : 'MARTIAN STATION', 0, -this.height / 2 - 40);
 
     const barW = this.width * 0.8;
     const barH = 18 / (zoom || 0.1);
@@ -89,10 +85,10 @@ export class Station extends Entity {
     p.pop();
   }
 
-  drawDefense(p, zoom, factionColor, roomState) {
+  drawDefense(p, factionColor, roomState) {
     const turretPos = [
-      {x: -250, y: -35}, {x: -250, y: -35}, {x: 250, y: -35}, {x: 250, y: -35},
-      {x: -250, y: 35}, {x: -250, y: 35}, {x: 250, y: 35}, {x: 250, y: 35}
+      {x: -this.width / 2, y: -this.height / 2}, {x: -this.width / 2, y: -this.height / 2}, {x: this.width / 2, y: -this.height / 2}, {x: this.width / 2, y: -this.height / 2},
+      {x: -this.width / 4, y: this.height / 2}, {x: -this.width / 4, y: this.height / 2}, {x: this.width / 4, y: this.height / 2}, {x: this.width / 4, y: this.height / 2}
     ];
 
     turretPos.forEach((tp, idx) => {
@@ -103,29 +99,16 @@ export class Station extends Entity {
         const muzzleX = this.x + (tp.x * Math.cos(this.angle || 0) - tp.y * Math.sin(this.angle || 0));
         const muzzleY = this.y + (tp.x * Math.sin(this.angle || 0) + tp.y * Math.cos(this.angle || 0));
 
-        let nearest = null;
-        let minDist = 1800;
-        
-        roomState.players.forEach(pl => {
-          if (pl.faction === this.faction || pl.isDead || pl.isDocked) return;
-          const d = Math.sqrt((pl.x - muzzleX) ** 2 + (pl.y - muzzleY) ** 2);
-          if (d < minDist) { minDist = d; nearest = pl; }
-        });
-        
-        roomState.projectiles.forEach(pj => {
-          if (pj.faction === this.faction || (pj.type !== 'drone' && pj.type !== 'missile')) return;
-          const d = Math.sqrt((pj.x - muzzleX) ** 2 + (pj.y - muzzleY) ** 2);
-          if (d < minDist) { minDist = d; nearest = pj; }
-        });
+        const target = roomState.players.get(this.targetId) || roomState.projectiles.get(this.targetId);
 
-        if (nearest) {
+        if (target) {
           p.push();
           p.stroke(factionColor);
           p.strokeWeight(3);
-          p.line(muzzleX, muzzleY, nearest.x, nearest.y);
+          p.line(muzzleX, muzzleY, target.x, target.y);
           p.stroke(255);
           p.strokeWeight(1);
-          p.line(muzzleX, muzzleY, nearest.x, nearest.y);
+          p.line(muzzleX, muzzleY, target.x, target.y);
           p.pop();
         }
       }

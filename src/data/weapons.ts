@@ -168,6 +168,8 @@ export const weapons = [
 
         tylium: 120000
     },
+
+    // STATION WEAPONS
     {
         id: "sta-b1-sentinel",
         name: "STA-B1 'Sentinel' Station Defense Autocannon",
@@ -182,7 +184,7 @@ export const weapons = [
         maxRange: 1800,
         optimalRange: 1200,
         accuracy: 600,
-        reload: 4,
+        reload: 6,
         firingArc: 360,
     },
     {
@@ -203,7 +205,7 @@ export const weapons = [
         projectileMaxSpeed: 4,
         projectileAcceleration: 0.05,
         projectileAngularVelocity: 0.03,
-        reload: 7,
+        reload: 9,
         firingArc: 360,
     },
     {

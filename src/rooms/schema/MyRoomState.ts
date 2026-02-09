@@ -17,5 +17,7 @@ export class MyRoomState extends Schema {
   @type("number") asteroids: number = 100;
   @type("number") serverTime: number = 0;
   @type("string") winner: string = "";
+  @type("number") gameOverTime: number = 0;
+  @type("string") gameStatus: string = "active"; // "active", "gameover"
 
 }
