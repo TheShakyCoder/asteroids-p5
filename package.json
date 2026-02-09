@@ -11,8 +11,10 @@
   "scripts": {
     "start": "tsx watch src/index.ts",
     "loadtest": "tsx loadtest/example.ts --room my_room --numClients 2",
-    "build": "npm run clean && tsc -p tsconfig.build.json",
-    "clean": "rimraf build",
+    "build:client": "cd client && bun install && bun run build && rimraf ../public/* && cp -r dist/* ../public/",
+    "build:server": "tsc -p tsconfig.build.json",
+    "build": "bun run clean && bun run build:client && bun run build:server",
+    "clean": "rimraf build public",
     "test": "mocha -r tsx test/**.test.ts --exit --timeout 15000"
   },
   "author": "",
