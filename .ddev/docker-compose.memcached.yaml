@@ -1,0 +1,15 @@
+version: '3.6'
+services:
+  memcached:
+    container_name: ddev-${DDEV_SITENAME}-memcached
+    image: memcached:1.6-alpine
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT
+    environment:
+      - VIRTUAL_HOST=$DDEV_HOSTNAME
+      - HTTP_EXPOSE=11211:11211
+    ports:
+      - "11211"
+    external_links:
+      - "ddev-router:${DDEV_SITENAME}.ddev.site"
