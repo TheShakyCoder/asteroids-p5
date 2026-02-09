@@ -16,49 +16,21 @@ export const ships = [
     },
     weapons: [
       {
-        weapon: {
-          id: 'mec-a6-fang',
-          level: 1
-        },
-        mount: {
-          left: 15,
-          front: 5,
-          rotation: 0,
-        }
+        weapon: { id: 'mec-a6-fang', level: 1 },
+        mount: { left: 20, front: -15, rotation: 0 }
       },
       {
-        weapon: {
-          id: 'swarm-missiles',
-          level: 1
-        },
-        mount: {
-          left: 5,
-          front: 10,
-          rotation: 0,
-        }
+        weapon: { id: 'swarm-missiles', level: 1 },
+        mount: { left: 10, front: -10, rotation: 0 }
       },
       {
-        weapon: {
-          id: 'swarm-missiles',
-          level: 1
-        },
-        mount: {
-          left: -5,
-          front: 10,
-          rotation: 0,
-        }
+        weapon: { id: 'swarm-missiles', level: 1 },
+        mount: { left: -10, front: -10, rotation: 0 }
       },
       {
-        weapon: {
-          id: 'mec-a6-fang',
-          level: 1
-        },
-        mount: {
-          left: -15,
-          front: 5,
-          rotation: 0,
-        }
-      },
+        weapon: { id: 'mec-a6-fang', level: 1 },
+        mount: { left: -20, front: -15, rotation: 0 }
+      }
     ]
   },
   {

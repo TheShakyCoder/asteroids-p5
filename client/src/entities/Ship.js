@@ -61,7 +61,7 @@ export class Ship extends Entity {
 
   drawShape(p) {
     if (this.shipClass === 'interceptor') {
-      p.beginShape(); p.vertex(0, -25); p.vertex(-4, 25); p.vertex(0, 18); p.vertex(4, 25); p.endShape(p.CLOSE);
+      p.beginShape(); p.vertex(0, -25); p.vertex(-12, 25); p.vertex(0, 18); p.vertex(12, 25); p.endShape(p.CLOSE);
     } else if (this.shipClass === 'assault') {
       p.beginShape(); p.vertex(0, -50); p.vertex(-50, 0); p.vertex(-30, 50); p.vertex(30, 50); p.vertex(50, 0); p.endShape(p.CLOSE);
     } else if (this.shipClass === 'support') {
