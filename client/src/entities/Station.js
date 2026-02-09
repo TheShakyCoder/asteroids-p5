@@ -19,29 +19,30 @@ export class Station extends Entity {
     this.weaponLastFire = data.weaponLastFire || {};
   }
 
-  draw(p, zoom, factionColor, isTargeted, roomState) {
+  draw(p, zoom, factionColor, isTargeted, roomState, camAngle = 0) {
     p.push();
     p.translate(this.x, this.y);
     p.rotate(this.angle || 0);
     
     // Outer hull
     p.stroke(factionColor);
-    p.strokeWeight(3 / zoom);
+    p.strokeWeight(3 / (zoom || 0.1));
     p.noFill();
     p.rect(0, 0, this.width, this.height);
     
     // Corner Turrets
     p.fill(factionColor + '33');
-    p.strokeWeight(1 / zoom);
+    p.strokeWeight(1 / (zoom || 0.1));
     const tx = this.width / 2;
     const ty = this.height / 2;
     p.rect(-tx, -ty, 20, 20); // TL
     p.rect(tx, -ty, 20, 20);  // TR
     p.rect(-tx, ty, 20, 20);  // BL
     p.rect(tx, ty, 20, 20);   // BR
-    p.pop();
 
     this.drawHUD(p, zoom, factionColor, isTargeted);
+    p.pop();
+
     if (roomState) {
       this.drawDefense(p, zoom, factionColor, roomState);
     }
@@ -49,7 +50,7 @@ export class Station extends Entity {
 
   drawHUD(p, zoom, factionColor, isTargeted) {
     p.push();
-    p.translate(this.x, this.y);
+    // No translation or rotation here anymore, using station's local space
     // p.noStroke();
     // p.fill(factionColor);
     // p.textSize(20 / zoom);
@@ -57,13 +58,13 @@ export class Station extends Entity {
     // p.text(this.faction === 'humans' ? 'TERRAN STATION' : 'MARTIAN STATION', 0, -this.height / 2 - 40);
 
     const barW = this.width * 0.8;
-    const barH = 18 / zoom;
-    const barY = -this.height / 2 - 30 / zoom;
+    const barH = 18 / (zoom || 0.1);
+    const barY = -this.height / 2 - 30 / (zoom || 0.1);
 
     // Background (Original Points / Max Hull) - Now Red
     p.fill('#ef4444');
     p.stroke(255, 100);
-    p.strokeWeight(1 / zoom);
+    p.strokeWeight(1 / (zoom || 0.1));
     p.rect(0, barY, barW, barH);
 
     // Current Points - Green
@@ -76,13 +77,13 @@ export class Station extends Entity {
     // Text Overlay
     p.fill(255);
     p.textAlign(p.CENTER, p.CENTER);
-    p.textSize(12 / zoom);
+    p.textSize(12 / (zoom || 0.1));
     p.text(`${Math.round(this.hull)} / ${Math.round(this.maxHull || 40000)}`, 0, barY);
 
     if (isTargeted) {
       p.noFill();
       p.stroke('#ff3b30');
-      p.strokeWeight(4 / zoom);
+      p.strokeWeight(4 / (zoom || 0.1));
       p.rect(0, 0, this.width * 1.2, this.height * 1.5);
     }
     p.pop();

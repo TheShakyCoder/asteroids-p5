@@ -250,9 +250,10 @@ const sketch = (p) => {
   };
 
   const updateZoomLevels = (p) => {
+    const h = p.height || 600;
     zoomLevels.value = [
-      p.height / 500,
-      p.height / 5000
+      h / 500,
+      h / 5000
     ];
   };
 
@@ -281,7 +282,7 @@ const sketch = (p) => {
 
     handleInputs();
 
-    const zoom = zoomLevels.value[currentZoomIndex.value];
+    const zoom = zoomLevels.value[currentZoomIndex.value] || 0.1;
     const factionColor = getFactionColor(myPlayer.faction);
 
     // --- APPLY CAMERA ---
@@ -359,7 +360,8 @@ const sketch = (p) => {
       }
 
       const sColor = getFactionColor(station.faction);
-      entity.draw(p, zoom, sColor, myPlayer.targetId === station.id, room.state);
+      const camAngle = cameraRotationActive.value ? -myPlayer.angle : 0;
+      entity.draw(p, zoom, sColor, myPlayer.targetId === station.id, room.state, camAngle);
     });
 
     // DRAW ALL PLAYERS
@@ -373,7 +375,8 @@ const sketch = (p) => {
       }
 
       const pColor = getFactionColor(player.faction);
-      entity.draw(p, zoom, pColor, shipConfigs.value, allWeapons.value, room.state);
+      const camAngle = cameraRotationActive.value ? -myPlayer.angle : 0;
+      entity.draw(p, zoom, pColor, shipConfigs.value, allWeapons.value, room.state, camAngle);
 
       if (myPlayer.targetId === player.id) {
         p.push();

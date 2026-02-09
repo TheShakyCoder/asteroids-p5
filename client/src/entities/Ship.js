@@ -31,7 +31,7 @@ export class Ship extends Entity {
     this.weaponLastFire = data.weaponLastFire || {};
   }
 
-  draw(p, zoom, factionColor, shipConfigs, allWeapons, roomState) {
+  draw(p, zoom, factionColor, shipConfigs, allWeapons, roomState, camAngle = 0) {
     if (this.isDead || this.isDocked) return;
 
     p.push();
@@ -39,17 +39,18 @@ export class Ship extends Entity {
 
     // Draw Name and Hull label above ship
     p.push();
+    p.rotate(-camAngle); // Keep text upright on screen
     p.noStroke();
     p.fill(255, 255, 255, 180);
-    p.textSize(12 / zoom);
+    p.textSize(12 / (zoom || 0.1));
     p.textAlign(p.CENTER, p.BOTTOM);
-    p.text(this.name || 'Unknown Pilot', 0, -40);
+    p.text(this.name || 'Unknown Pilot', 0, -40 / (zoom || 0.1));
     p.pop();
 
     p.rotate(this.angle || 0);
 
     p.stroke(factionColor);
-    p.strokeWeight(2 / zoom);
+    p.strokeWeight(2 / (zoom || 0.1));
     p.noFill();
 
     this.drawShape(p);
@@ -96,7 +97,7 @@ export class Ship extends Entity {
         // Visualize Firing Arc
         p.noFill();
         p.stroke(`${factionColor}66`);
-        p.strokeWeight(1 / zoom);
+        p.strokeWeight(1 / (zoom || 0.1));
         
         const halfFovRad = p.radians(fov / 2);
         const startAngle = -p.HALF_PI - halfFovRad;
@@ -146,7 +147,7 @@ export class Ship extends Entity {
 
         if (!isMissile) {
            p.stroke(factionColor);
-           p.strokeWeight((weaponDef.fireStroke || 1) / zoom);
+           p.strokeWeight((weaponDef.fireStroke || 1) / (zoom || 0.1));
            const targetRelX = target.x - muzzleWorldX;
            const targetRelY = target.y - muzzleWorldY;
            p.line(0, 0, targetRelX, targetRelY);

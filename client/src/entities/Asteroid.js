@@ -21,7 +21,7 @@ export class Asteroid extends Entity {
     
     p.noFill();
     p.stroke(150);
-    p.strokeWeight(3 / zoom);
+    p.strokeWeight(3 / (zoom || 0.1));
     
     // Procedural irregular shape
     p.beginShape();

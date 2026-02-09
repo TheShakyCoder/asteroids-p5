@@ -19,12 +19,12 @@ export class Projectile extends Entity {
     p.rotate(this.angle);
 
     p.stroke(factionColor);
-    p.strokeWeight(2 / zoom);
+    p.strokeWeight(2 / (zoom || 0.1));
 
     if (this.type === 'missile') {
       p.noFill();
       p.beginShape(); p.vertex(0, -6); p.vertex(-2, 6); p.vertex(2, 6); p.endShape(p.CLOSE);
-      p.strokeWeight(1 / zoom);
+      p.strokeWeight(1 / (zoom || 0.1));
       p.line(-2, 6, -4, 8);
       p.line(2, 6, 4, 8);
     } else if (this.type === 'drone') {
