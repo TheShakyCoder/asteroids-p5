@@ -9,6 +9,7 @@ import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
 import { weapons } from "../data/weapons.js";
 import { calculateHit, rollHitChance } from "../utils/combat.js";
+import jwt from "jsonwebtoken";
 
 export class MyRoom extends Room {
   maxClients = 4;
@@ -932,15 +933,27 @@ export class MyRoom extends Room {
     }
   }
 
-  onJoin(client: Client, options: any) {
-    console.log(client.sessionId, "joined with options:", options);
+  async onAuth(client: Client, options: any) {
+    if (!options.token) return { username: `Guest-${client.sessionId}` }; 
+    
+    try {
+      const decoded = jwt.verify(options.token, process.env.JWT_SECRET || "secret");
+      return decoded;
+    } catch (e) {
+      console.error("Auth failed:", e);
+      return false;
+    }
+  }
+
+  onJoin(client: Client, options: any, auth: any) {
+    console.log(client.sessionId, "joined with auth:", auth);
 
     const factionId = options.faction || "humans";
     const faction = this.state.factions.get(factionId);
     const shipSpec = ships.find(s => s.id === options.ship) || ships[0];
 
     const player = new Player();
-    player.id = client.sessionId;
+    player.id = auth?.username || client.sessionId;
     player.faction = factionId;
     player.shipClass = shipSpec.id;
     const angle = Math.random() * Math.PI * 2;
