@@ -2,6 +2,8 @@ import { Schema, type, MapSchema } from "@colyseus/schema";
 
 export class Player extends Schema {
   @type("string") id: string;
+  @type("string") name: string;
+
   @type("string") faction: string;
   @type("string") shipClass: string;
   @type("number") x: number;

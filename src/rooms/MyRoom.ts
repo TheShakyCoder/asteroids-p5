@@ -953,7 +953,8 @@ export class MyRoom extends Room {
     const shipSpec = ships.find(s => s.id === options.ship) || ships[0];
 
     const player = new Player();
-    player.id = auth?.username || client.sessionId;
+    player.id = client.sessionId;
+    player.name = auth?.username || `Guest-${client.sessionId}`;
     player.faction = factionId;
     player.shipClass = shipSpec.id;
     const angle = Math.random() * Math.PI * 2;
