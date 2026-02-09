@@ -502,7 +502,7 @@ export class MyRoom extends Room {
                   player.weaponLastFire.set(i.toString(), now);
 
                   // 1. ROLL TO HIT (Autocannons only)
-                  if (weaponDef.type !== "Missile") {
+                  if (weaponDef.type === "Autocannon") {
                     const didHit = rollHitChance({
                       accuracy,
                       optimalRange: optRange,
@@ -540,10 +540,10 @@ export class MyRoom extends Room {
                         stationTarget.hull = stationTarget.maxHull;
                       }
                     }
-                  } else {
+                  } else if(weaponDef.type === "Missile") {
                     // SPAWN MISSILE
                     const projectile = new Projectile();
-                    projectile.id = Math.random().toString(36).substring(2, 11);
+                    projectile.id = `M_${Math.random().toString(8).substring(2, 9)}`;
                     projectile.type = "missile";
                     projectile.faction = player.faction;
                     projectile.ownerId = player.id;
@@ -745,7 +745,7 @@ export class MyRoom extends Room {
             // Weapon angle faces target
             const angle = Math.atan2(dy, dx) + Math.PI / 2;
 
-            if (weaponDef.type !== "Missile") {
+            if (weaponDef.type === "Autocannon") {
               const didHit = rollHitChance({
                 accuracy,
                 optimalRange: optRange,
@@ -770,10 +770,10 @@ export class MyRoom extends Room {
                   }
                 }
               }
-            } else {
+            } else if (weaponDef.type === "Missile") {
               // SPAWN MISSILE
               const projectile = new Projectile();
-              projectile.id = Math.random().toString(36).substring(2, 11);
+              projectile.id = `M_${Math.random().toString(8).substring(2, 9)}`;
               projectile.type = "missile";
               projectile.faction = station.faction;
               projectile.ownerId = station.id;
@@ -825,7 +825,9 @@ export class MyRoom extends Room {
           station.droneNextSpawnTime = now + 1000; // 1 second apart
 
           const drone = new Projectile();
-          drone.id = `drone_${station.id}_${Date.now()}_${station.droneSpawnsRemaining}`;
+
+          drone.id = `D_${Date.now() % 3600000}_${station.droneSpawnsRemaining}`;
+
           drone.type = "drone";
           drone.faction = station.faction;
           drone.ownerId = station.id;

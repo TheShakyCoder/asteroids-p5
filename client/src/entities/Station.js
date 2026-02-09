@@ -57,12 +57,27 @@ export class Station extends Entity {
     // p.text(this.faction === 'humans' ? 'TERRAN STATION' : 'MARTIAN STATION', 0, -this.height / 2 - 40);
 
     const barW = this.width * 0.8;
-    const barH = 10 / zoom;
-    p.fill(0, 0, 0, 100);
-    p.rect(0, -this.height / 2 - 20, barW, barH);
+    const barH = 18 / zoom;
+    const barY = -this.height / 2 - 30 / zoom;
+
+    // Background (Original Points / Max Hull) - Now Red
+    p.fill('#ef4444');
+    p.stroke(255, 100);
+    p.strokeWeight(1 / zoom);
+    p.rect(0, barY, barW, barH);
+
+    // Current Points - Green
     const hPct = Math.max(0, this.hull / (this.maxHull || 40000));
-    p.fill(hPct > 0.3 ? '#4ade80' : '#ef4444');
-    p.rect(-(barW * (1 - hPct)) / 2, -this.height / 2 - 20, barW * hPct, barH);
+    p.noStroke();
+    p.fill('#4ade80');
+    const currentW = barW * hPct;
+    p.rect(-(barW - currentW) / 2, barY, currentW, barH);
+
+    // Text Overlay
+    p.fill(255);
+    p.textAlign(p.CENTER, p.CENTER);
+    p.textSize(12 / zoom);
+    p.text(`${Math.round(this.hull)} / ${Math.round(this.maxHull || 40000)}`, 0, barY);
 
     if (isTargeted) {
       p.noFill();
