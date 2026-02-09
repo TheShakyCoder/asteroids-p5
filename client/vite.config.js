@@ -8,6 +8,8 @@ const origin = `${process.env.DDEV_PRIMARY_URL}:${port}`
 export default defineConfig({
   plugins: [vue()],
   build: {
+    outDir: '../public',
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {
