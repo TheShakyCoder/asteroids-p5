@@ -529,14 +529,19 @@ export class MyRoom extends Room {
                     if (target.hull <= 0) {
                       if (this.state.players.has(target.id)) {
                         this.handlePlayerDeath(target as Player);
+                        player.tylium += 1500;
+                        console.log(`Player ${player.id} awarded 1500 Tylium for destroying Player ${target.id}`);
                       } else if (this.state.projectiles.has(target.id)) {
                         this.state.projectiles.delete(target.id);
-                        console.log(`Player ${player.id} destroyed Projectile ${target.id}`);
+                        player.tylium += 100;
+                        console.log(`Player ${player.id} awarded 100 Tylium for destroying Projectile ${target.id}`);
                       } else if (this.state.stations.has(target.id)) {
                         // STATION DESTROYED! 
                         const stationTarget = target as Station;
                         console.log(`STATION ${target.id} DESTROYED!`);
                         this.state.winner = (stationTarget.faction === 'humans') ? 'martians' : 'humans';
+                        player.tylium += 10000;
+                        console.log(`Player ${player.id} awarded 10000 Tylium for destroying Station ${target.id}`);
                         stationTarget.hull = stationTarget.maxHull;
                       }
                     }
@@ -671,6 +676,11 @@ export class MyRoom extends Room {
                 const dx = potentialTarget.x - proj.x;
                 const dy = potentialTarget.y - proj.y;
                 if (Math.sqrt(dx*dx + dy*dy) < 30) {
+                    const attacker = this.state.players.get(proj.ownerId);
+                    if (attacker) {
+                        attacker.tylium += 100;
+                        console.log(`Player ${attacker.id} awarded 100 Tylium for intercepting Projectile ${potentialTarget.id}`);
+                    }
                     this.state.projectiles.delete(potentialTarget.id);
                     this.state.projectiles.delete(proj.id);
                     hitDetected = true;
@@ -843,12 +853,12 @@ export class MyRoom extends Room {
           const dy = targetStation.y - drone.y;
           drone.angle = Math.atan2(dy, dx) + Math.PI / 2;
           
-          drone.speed = 1.5; // Slow travel
+          drone.speed = 2; // Slow travel
           drone.acceleration = 0;
-          drone.maxSpeed = 1.5;
+          drone.maxSpeed = 2;
           drone.turnSpeed = 0.05; // Gentle seeking
           
-          drone.damage = 300; // Reduced power but many drones
+          drone.damage = 600; // Reduced power but many drones
           drone.armorPiercing = 40;
           drone.hull = 60; // Destructible
           drone.maxHull = 60;
@@ -874,14 +884,31 @@ export class MyRoom extends Room {
     console.log(`${proj.type} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)}`);
 
     if (target.hull <= 0) {
-      if (this.state.players.has(target.id)) {
-        this.handlePlayerDeath(target as Player);
-      } else if (this.state.stations.has(target.id)) {
-        // Station destroyed? 
-        const station = target as Station;
-        console.log(`STATION ${target.id} DESTROYED!`);
-        this.state.winner = (station.faction === 'humans') ? 'martians' : 'humans';
-        station.hull = station.maxHull; // Quick reset or maintain state
+      const attacker = this.state.players.get(proj.ownerId);
+      if (attacker) {
+          if (this.state.players.has(target.id)) {
+            this.handlePlayerDeath(target as Player);
+            attacker.tylium += 1500;
+            console.log(`Player ${attacker.id} awarded 1500 Tylium for destroying Player ${target.id} with ${proj.type}`);
+          } else if (this.state.stations.has(target.id)) {
+            // Station destroyed? 
+            const station = target as Station;
+            console.log(`STATION ${target.id} DESTROYED by ${attacker.id}!`);
+            this.state.winner = (station.faction === 'humans') ? 'martians' : 'humans';
+            attacker.tylium += 10000;
+            console.log(`Player ${attacker.id} awarded 10000 Tylium for destroying Station ${target.id}`);
+            station.hull = station.maxHull; // Quick reset or maintain state
+          }
+      } else {
+          // Non-player attacker (e.g. station turret)
+          if (this.state.players.has(target.id)) {
+            this.handlePlayerDeath(target as Player);
+          } else if (this.state.stations.has(target.id)) {
+            const station = target as Station;
+            console.log(`STATION ${target.id} DESTROYED!`);
+            this.state.winner = (station.faction === 'humans') ? 'martians' : 'humans';
+            station.hull = station.maxHull;
+          }
       }
     }
     
