@@ -70,14 +70,14 @@ export const ships = [
     name: "Support",
     class: "Large",
     description: "Heavy armor and sustained fire. Built to hold the line.",
-    stats: { armor: 60, hull: 400, weaponRadius: 10, angularVelocity: 15, acceleration: 12, maxVelocity: 240, lateralDamping: 0.04 },
+    stats: { armor: 60, hull: 400, weaponRadius: 10, angularVelocity: 15, acceleration: 2, maxVelocity: 240, lateralDamping: 0.04 },
     weapons: [
       {
-        weapon: { id: 'mec-h25-titan', level: 1 },
+        weapon: { id: 'hvm-x9-judgement', level: 1 },
         mount: { left: 25, front: -150, rotation: -90 }
       },
       {
-        weapon: { id: 'mec-h25-titan', level: 1 },
+        weapon: { id: 'hvm-x9-judgement', level: 1 },
         mount: { left: 25, front: -50, rotation: -90 }
       },
       {
@@ -89,8 +89,20 @@ export const ships = [
         mount: { left: 25, front: 150, rotation: -80 }
       },
       {
+        weapon: { id: 'mec-h25-titan', level: 1 },
+        mount: { left: -25, front: 150, rotation: 80 }
+      },
+      {
+        weapon: { id: 'mec-h25-titan', level: 1 },
+        mount: { left: -25, front: 50, rotation: 90 }
+      },
+      {
         weapon: { id: 'hvm-x9-judgement', level: 1 },
-        mount: { left: -25, front: 0, rotation: 90 }
+        mount: { left: -25, front: -50, rotation: 90 }
+      },
+      {
+        weapon: { id: 'hvm-x9-judgement', level: 1 },
+        mount: { left: -25, front: -150, rotation: 90 }
       }
     ]
   }
