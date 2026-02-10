@@ -9,7 +9,8 @@
     "node": ">= 20.9.0"
   },
   "scripts": {
-    "start": "tsx watch src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "start": "bun run build/index.js",
     "loadtest": "tsx loadtest/example.ts --room my_room --numClients 2",
     "build:client": "cd client && bun install && NODE_OPTIONS=--max-old-space-size=4096 bun run build",
     "build:server": "tsc -p tsconfig.build.json",
