@@ -5,13 +5,12 @@ export const ships = [
     class: "Small",
     description: "Fast and agile. Ideal for hit-and-run tactics.",
     stats: {
-      speed: 8,
       armor: 20,
       hull: 100,
       weaponRadius: 2,
       angularVelocity: 60,
-      acceleration: 0.2,
-      maxVelocity: 15,
+      acceleration: 2,
+      maxVelocity: 900,
       lateralDamping: 0.15
     },
     weapons: [
@@ -38,51 +37,31 @@ export const ships = [
     name: "Assault",
     class: "Medium",
     description: "Well-rounded combat vessel with balanced protection and firepower.",
-    stats: { speed: 5, armor: 40, hull: 200, weaponRadius: 5, angularVelocity: 30, acceleration: 0.3, maxVelocity: 7, lateralDamping: 0.08 },
+    stats: { armor: 40, hull: 200, weaponRadius: 5, angularVelocity: 30, acceleration: 2, maxVelocity: 420, lateralDamping: 0.08 },
     weapons: [
       {
-        weapon: {
-          id: 'medium-plasma-rifle',
-          level: 1
-        },
-        mount: {
-          left: 35,
-          front: 5,
-          rotation: -45,
-        }
+        weapon: { id: 'medium-plasma-rifle', level: 1 },
+        mount: { left: 35, front: -5, rotation: -90 }
       },
       {
-        weapon: {
-          id: 'mrm-s3-harrier',
-          level: 1
-        },
-        mount: {
-          left: 15,
-          front: 25,
-          rotation: 0,
-        }
+        weapon: { id: 'medium-plasma-rifle', level: 1 },
+        mount: { left: 35, front: 5, rotation: -45 }
       },
       {
-        weapon: {
-          id: 'mrm-s3-harrier',
-          level: 1
-        },
-        mount: {
-          left: -15,
-          front: 25,
-          rotation: 0,
-        }
+        weapon: { id: 'mrm-s3-harrier', level: 1 },
+        mount: { left: 15, front: 25, rotation: 0 }
       },
       {
-        weapon: {
-          id: 'medium-plasma-rifle',
-          level: 1
-        },
-        mount: {
-          left: -35,
-          front: 5,
-          rotation: 45,
-        }
+        weapon: { id: 'mrm-s3-harrier', level: 1 },
+        mount: { left: -15, front: 25, rotation: 0 }
+      },
+      {
+        weapon: { id: 'medium-plasma-rifle', level: 1 },
+        mount: { left: -35, front: 5, rotation: 45 }
+      },
+      {
+        weapon: { id: 'medium-plasma-rifle', level: 1 },
+        mount: { left: -35, front: -5, rotation: 90 }
       },
     ]
   },
@@ -91,29 +70,27 @@ export const ships = [
     name: "Support",
     class: "Large",
     description: "Heavy armor and sustained fire. Built to hold the line.",
-    stats: { speed: 3, armor: 60, hull: 400, weaponRadius: 10, angularVelocity: 15, acceleration: 0.2, maxVelocity: 4, lateralDamping: 0.04 },
+    stats: { armor: 60, hull: 400, weaponRadius: 10, angularVelocity: 15, acceleration: 12, maxVelocity: 240, lateralDamping: 0.04 },
     weapons: [
       {
-        weapon: {
-          id: 'heavy-plasma-rifle',
-          level: 1
-        },
-        mount: {
-          left: 25,
-          front: 0,
-          rotation: -90,
-        }
+        weapon: { id: 'heavy-plasma-rifle', level: 1 },
+        mount: { left: 25, front: -150, rotation: -90 }
       },
       {
-        weapon: {
-          id: 'hvm-x9-judgement',
-          level: 1
-        },
-        mount: {
-          left: -25,
-          front: 0,
-          rotation: 90,
-        }
+        weapon: { id: 'heavy-plasma-rifle', level: 1 },
+        mount: { left: 25, front: -50, rotation: -90 }
+      },
+      {
+        weapon: { id: 'heavy-plasma-rifle', level: 1 },
+        mount: { left: 25, front: 50, rotation: -90 }
+      },
+      {
+        weapon: { id: 'heavy-plasma-rifle', level: 1 },
+        mount: { left: 25, front: 150, rotation: -80 }
+      },
+      {
+        weapon: { id: 'hvm-x9-judgement', level: 1 },
+        mount: { left: -25, front: 0, rotation: 90 }
       }
     ]
   }

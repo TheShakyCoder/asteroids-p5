@@ -1,4 +1,5 @@
 export const weapons = [
+    // Light
     {
         id: "mec-a6-fang",
         name: "MEC-A6 'Fang'/Type A 'Agressor' Light Autocannon",
@@ -21,56 +22,6 @@ export const weapons = [
         firingArc: 75.00,
         tylium: 10000
     },
-    {
-        id: "mec-b2-raptor",
-        name: "MEC-B2 'Raptor' Medium Autocannon",
-        type: "Autocannon",
-        class: "Medium",
-        fireDuration: 180,
-        fireStroke: 3,
-
-        minDamage: [2, 2.22, 2.44, 2.66, 2.88, 3.11, 3.33, 3.55, 3.77, 4],
-        maxDamage: [18, 20, 22, 24, 26, 28, 30, 32, 34, 36],
-        dps: [20, 22, 24, 26, 28, 30, 32, 34, 36, 40],
-
-        armorPiercing: 10,
-        minRange: 0,
-        maxRange: 900,
-        optimalRange: [350, 370, 390, 410, 430, 450, 470, 490, 510, 530],
-
-        accuracy: 420,
-        criticalOffense: 110,
-        reload: 0.6,
-        powerCost: 1.4,
-        firingArc: 75,
-        tylium: 15000
-    },
-    {
-        id: "mec-c4-phalanx",
-        name: "MEC-C4 'Phalanx' Heavy Autocannon",
-        type: "Autocannon",
-        class: "Heavy",
-        fireDuration: 220,
-        fireStroke: 4,
-
-        minDamage: [4, 4.44, 4.88, 5.33, 5.77, 6.22, 6.66, 7.11, 7.55, 8],
-        maxDamage: [35, 38.88, 42.77, 46.66, 50.55, 54.44, 58.33, 62.22, 66.11, 70],
-        dps: [38, 42, 46, 50, 54, 58, 62, 66, 70, 76],
-
-        armorPiercing: 20,
-        minRange: 0,
-        maxRange: 950,
-        optimalRange: [400, 420, 440, 460, 480, 500, 520, 540, 560, 580],
-
-        accuracy: 380,
-        criticalOffense: 130,
-        reload: 0.75,
-        powerCost: 2.2,
-        firingArc: 70,
-        tylium: 30000
-    },
-
-    //  MISSILES
     {
         id: "swarm-missiles",
         name: "Swarm Missile Rack",
@@ -102,7 +53,50 @@ export const weapons = [
         firingArc: 65,
         tylium: 50000
     },
+
+    // Medium
     {
+        id: "mec-b2-raptor",
+        name: "MEC-B2 'Raptor' Medium Autocannon",
+        type: "Autocannon",
+        class: "Medium",
+        fireDuration: 180,
+        fireStroke: 3,
+
+        minDamage: [2, 2.22, 2.44, 2.66, 2.88, 3.11, 3.33, 3.55, 3.77, 4],
+        maxDamage: [18, 20, 22, 24, 26, 28, 30, 32, 34, 36],
+        dps: [20, 22, 24, 26, 28, 30, 32, 34, 36, 40],
+
+        armorPiercing: 10,
+        minRange: 0,
+        maxRange: 900,
+        optimalRange: [350, 370, 390, 410, 430, 450, 470, 490, 510, 530],
+
+        accuracy: 420,
+        criticalOffense: 110,
+        reload: 0.6,
+        powerCost: 1.4,
+        firingArc: 75,
+        tylium: 15000
+    },
+        {
+        id: "medium-plasma-rifle",
+        name: "MEC-M10 'Viper' Medium Plasma Rifle",
+        type: "Plasma",
+        class: "Medium",
+        fireDuration: 200,
+        fireStroke: 3,
+        minDamage: [20, 22, 24, 26, 28, 30, 32, 34, 36, 40],
+        maxDamage: [40, 44, 48, 52, 56, 60, 64, 68, 72, 80],
+        armorPiercing: 15,
+        minRange: 0,
+        maxRange: 800,
+        optimalRange: [400, 420, 440, 460, 480, 500, 520, 540, 560, 580],
+        accuracy: 400,
+        reload: 0.8,
+        firingArc: 45.0
+    },
+{
         id: "mrm-s3-harrier",
         name: "MRM-S3 \"Harrier\" Medium Missile Battery",
         type: "Missile",
@@ -135,6 +129,49 @@ export const weapons = [
 
         tylium: 52000
     },
+
+    // Heavy
+    {
+        id: "mec-c4-phalanx",
+        name: "MEC-C4 'Phalanx' Heavy Autocannon",
+        type: "Autocannon",
+        class: "Heavy",
+        fireDuration: 220,
+        fireStroke: 4,
+
+        minDamage: [4, 4.44, 4.88, 5.33, 5.77, 6.22, 6.66, 7.11, 7.55, 8],
+        maxDamage: [35, 38.88, 42.77, 46.66, 50.55, 54.44, 58.33, 62.22, 66.11, 70],
+        dps: [38, 42, 46, 50, 54, 58, 62, 66, 70, 76],
+
+        armorPiercing: 20,
+        minRange: 0,
+        maxRange: 950,
+        optimalRange: [400, 420, 440, 460, 480, 500, 520, 540, 560, 580],
+
+        accuracy: 380,
+        criticalOffense: 130,
+        reload: 0.75,
+        powerCost: 2.2,
+        firingArc: 190,
+        tylium: 30000
+    },
+        {
+        id: "heavy-plasma-rifle",
+        name: "MEC-H25 'Titan' Heavy Plasma Rifle",
+        type: "Plasma",
+        class: "Heavy",
+        fireDuration: 250,
+        fireStroke: 5,
+        minDamage: [50, 55, 60, 65, 70, 75, 80, 85, 90, 100],
+        maxDamage: [100, 110, 120, 130, 140, 150, 160, 170, 180, 200],
+        armorPiercing: 30,
+        minRange: 0,
+        maxRange: 1200,
+        optimalRange: [600, 630, 660, 690, 720, 750, 780, 810, 840, 870],
+        accuracy: 350,
+        reload: 1.5,
+        firingArc: 190
+    },
     {
         id: "hvm-x9-judgement",
         name: "HVM-X9 \"Judgement\" Heavy Capital Missile Array",
@@ -164,7 +201,7 @@ export const weapons = [
 
         reload: 2.10,
         powerCost: 4.80,
-        firingArc: 60.00,
+        firingArc: 190,
 
         tylium: 120000
     },
@@ -208,38 +245,4 @@ export const weapons = [
         reload: 9,
         firingArc: 360,
     },
-    {
-        id: "medium-plasma-rifle",
-        name: "MEC-M10 'Viper' Medium Plasma Rifle",
-        type: "Plasma",
-        class: "Medium",
-        fireDuration: 200,
-        fireStroke: 3,
-        minDamage: [20, 22, 24, 26, 28, 30, 32, 34, 36, 40],
-        maxDamage: [40, 44, 48, 52, 56, 60, 64, 68, 72, 80],
-        armorPiercing: 15,
-        minRange: 0,
-        maxRange: 800,
-        optimalRange: [400, 420, 440, 460, 480, 500, 520, 540, 560, 580],
-        accuracy: 400,
-        reload: 0.8,
-        firingArc: 45.0
-    },
-    {
-        id: "heavy-plasma-rifle",
-        name: "MEC-H25 'Titan' Heavy Plasma Rifle",
-        type: "Plasma",
-        class: "Heavy",
-        fireDuration: 250,
-        fireStroke: 5,
-        minDamage: [50, 55, 60, 65, 70, 75, 80, 85, 90, 100],
-        maxDamage: [100, 110, 120, 130, 140, 150, 160, 170, 180, 200],
-        armorPiercing: 30,
-        minRange: 0,
-        maxRange: 1200,
-        optimalRange: [600, 630, 660, 690, 720, 750, 780, 810, 840, 870],
-        accuracy: 350,
-        reload: 1.5,
-        firingArc: 35.0
-    }
 ];

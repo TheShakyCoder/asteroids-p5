@@ -369,10 +369,10 @@ export class MyRoom extends Room {
 
       // Find ship stats for this player
       const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
-      const maxSpeed = shipSpec.stats.maxVelocity || 10;
-      const acceleration = shipSpec.stats.acceleration || 0.5;
+      const maxSpeed = (shipSpec.stats.maxVelocity) / 60;
+      const acceleration = (shipSpec.stats.acceleration) / 60;
       // Convert deg/sec to rad/tick: (degrees * PI/180) * (deltaTime in seconds)
-      const rotationSpeed = (shipSpec.stats.angularVelocity || 90) * (Math.PI / 180) * (deltaTime / 1000);
+      const rotationSpeed = (shipSpec.stats.angularVelocity) * (Math.PI / 180) * (deltaTime / 1000);
       const friction = 1.0; // Space is a vacuum; no passive friction. Only S (brakes) will slow you down.
 
       // Update angle
