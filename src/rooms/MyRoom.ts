@@ -1,4 +1,4 @@
-import { Room, Client, CloseCode } from "colyseus";
+import { Room, Client, CloseCode, matchMaker } from "colyseus";
 import { MyRoomState } from "./schema/MyRoomState.js";
 import { Player } from "./schema/Player.js";
 import { Station } from "./schema/Station.js";
@@ -942,11 +942,21 @@ export class MyRoom extends Room {
   private triggerGameOver(winner: string) {
     if (this.state.gameStatus === "gameover") return;
     
+    // Lock the room so no one else can join
+    this.lock();
+
     this.state.winner = winner;
     this.state.gameStatus = "gameover";
     this.state.gameOverTime = this.state.serverTime + 60000; // 60s from now
 
     console.log(`GAME OVER! Winner: ${winner}. Room will be disposed in 60s.`);
+
+    // Immediately create a new Sector 1
+    matchMaker.create("my_room", { name: "Sector 1" }).then(room => {
+        console.log("Replacement Sector 1 created:", room.roomId);
+    }).catch(e => {
+        console.error("Failed to create replacement Sector 1:", e);
+    });
 
     this.clock.setTimeout(() => {
       console.log("60 seconds elapsed. Disconnecting all clients and disposing room.");
@@ -976,13 +986,24 @@ export class MyRoom extends Room {
     const faction = this.state.factions.get(player.faction);
     const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
 
-    const angle = Math.random() * Math.PI * 2;
-    const spawnRadius = 500;
-    const spawnX = faction ? faction.spawnX : 0;
-    const spawnY = faction ? faction.spawnY : 0;
+    const stationId = `base_${player.faction}`;
+    const station = this.state.stations.get(stationId);
 
-    player.x = spawnX + Math.cos(angle) * spawnRadius;
-    player.y = spawnY + Math.sin(angle) * spawnRadius;
+    if (station) {
+      player.x = station.x;
+      player.y = station.y;
+      player.isDocked = true;
+    } else {
+      const faction = this.state.factions.get(player.faction);
+      const angle = Math.random() * Math.PI * 2;
+      const spawnRadius = 500;
+      const spawnX = faction ? faction.spawnX : 0;
+      const spawnY = faction ? faction.spawnY : 0;
+      player.x = spawnX + Math.cos(angle) * spawnRadius;
+      player.y = spawnY + Math.sin(angle) * spawnRadius;
+      player.isDocked = false;
+    }
+
     player.vx = 0;
     player.vy = 0;
     player.angle = 0;

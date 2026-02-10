@@ -40,11 +40,11 @@ export const ships = [
     stats: { armor: 40, hull: 200, weaponRadius: 5, angularVelocity: 30, acceleration: 2, maxVelocity: 420, lateralDamping: 0.08 },
     weapons: [
       {
-        weapon: { id: 'medium-plasma-rifle', level: 1 },
+        weapon: { id: 'mec-m10-viper', level: 1 },
         mount: { left: 35, front: -5, rotation: -90 }
       },
       {
-        weapon: { id: 'medium-plasma-rifle', level: 1 },
+        weapon: { id: 'mec-m10-viper', level: 1 },
         mount: { left: 35, front: 5, rotation: -45 }
       },
       {
@@ -56,11 +56,11 @@ export const ships = [
         mount: { left: -15, front: 25, rotation: 0 }
       },
       {
-        weapon: { id: 'medium-plasma-rifle', level: 1 },
+        weapon: { id: 'mec-m10-viper', level: 1 },
         mount: { left: -35, front: 5, rotation: 45 }
       },
       {
-        weapon: { id: 'medium-plasma-rifle', level: 1 },
+        weapon: { id: 'mec-m10-viper', level: 1 },
         mount: { left: -35, front: -5, rotation: 90 }
       },
     ]
@@ -73,19 +73,19 @@ export const ships = [
     stats: { armor: 60, hull: 400, weaponRadius: 10, angularVelocity: 15, acceleration: 12, maxVelocity: 240, lateralDamping: 0.04 },
     weapons: [
       {
-        weapon: { id: 'heavy-plasma-rifle', level: 1 },
+        weapon: { id: 'mec-h25-titan', level: 1 },
         mount: { left: 25, front: -150, rotation: -90 }
       },
       {
-        weapon: { id: 'heavy-plasma-rifle', level: 1 },
+        weapon: { id: 'mec-h25-titan', level: 1 },
         mount: { left: 25, front: -50, rotation: -90 }
       },
       {
-        weapon: { id: 'heavy-plasma-rifle', level: 1 },
+        weapon: { id: 'mec-h25-titan', level: 1 },
         mount: { left: 25, front: 50, rotation: -90 }
       },
       {
-        weapon: { id: 'heavy-plasma-rifle', level: 1 },
+        weapon: { id: 'mec-h25-titan', level: 1 },
         mount: { left: 25, front: 150, rotation: -80 }
       },
       {

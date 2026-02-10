@@ -19,5 +19,6 @@ export class MyRoomState extends Schema {
   @type("string") winner: string = "";
   @type("number") gameOverTime: number = 0;
   @type("string") gameStatus: string = "active"; // "active", "gameover"
+  @type("string") serverVersion: string = "0.17.0";
 
 }

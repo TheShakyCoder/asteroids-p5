@@ -80,9 +80,9 @@ export const weapons = [
         tylium: 15000
     },
         {
-        id: "medium-plasma-rifle",
-        name: "MEC-M10 'Viper' Medium Plasma Rifle",
-        type: "Plasma",
+        id: "mec-m10-viper",
+        name: "MEC-M10 'Viper' Medium Autocannon",
+        type: "Autocannon",
         class: "Medium",
         fireDuration: 200,
         fireStroke: 3,
@@ -156,9 +156,9 @@ export const weapons = [
         tylium: 30000
     },
         {
-        id: "heavy-plasma-rifle",
-        name: "MEC-H25 'Titan' Heavy Plasma Rifle",
-        type: "Plasma",
+        id: "mec-h25-titan",
+        name: "MEC-H25 'Titan' Heavy Autocannon",
+        type: "Autocannon",
         class: "Heavy",
         fireDuration: 250,
         fireStroke: 5,

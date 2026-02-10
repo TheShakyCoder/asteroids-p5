@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed, reactive } from 'vue';
 import { Client } from '@colyseus/sdk';
 import p5 from 'p5';
@@ -43,6 +43,8 @@ const myPlayer = ref(null);
 const gameOverTimeLeft = ref(0);
 const gameStatus = ref("active");
 const winner = ref("");
+const serverVersion = ref("0.0.0");
+const clientVersion = ref(import.meta.env.VITE_CLIENT_VERSION || "0.0.0");
 
 const targetEntity = computed(() => {
   if (!myPlayer.value || !room || !room.state) return 'NONE';
@@ -233,9 +235,15 @@ const connect = async () => {
 
       gameStatus.value = state.gameStatus;
       winner.value = state.winner;
+      serverVersion.value = (state as any).serverVersion || "N/A";
       if (state.gameOverTime > 0) {
         gameOverTimeLeft.value = Math.max(0, state.gameOverTime - state.serverTime);
       }
+    });
+
+    room.onLeave((code) => {
+      console.log("Left sector with code:", code);
+      emit('leave');
     });
 
   } catch (e) {
@@ -757,6 +765,10 @@ onUnmounted(() => {
       <dl>
         <dt>Link:</dt>
         <dd>{{ connectionStatus }}</dd>
+        <dt>S-Ver:</dt>
+        <dd>{{ serverVersion }}</dd>
+        <dt>C-Ver:</dt>
+        <dd>{{ clientVersion }}</dd>
         <dt>Position:</dt>
         <dd>{{ Math.round(myPlayer.x || 0) }}, {{ Math.round(myPlayer.y || 0) }}</dd>
         <dt>Vector:</dt>
@@ -810,7 +822,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Death/Respawn UI -->
+      <!-- Game Over UI -->
       <transition name="fade">
         <div v-if="gameStatus === 'gameover'" class="gameover-overlay">
           <div class="gameover-card" :class="winner === props.faction ? 'victory' : 'defeat'">
@@ -825,6 +837,20 @@ onUnmounted(() => {
             </div>
             
             <button @click="emit('leave')" class="lobby-btn">RETURN TO LOBBY NOW</button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Death/Respawn UI -->
+      <transition name="fade">
+        <div v-if="isDead && gameStatus !== 'gameover'" class="respawn-overlay">
+          <div class="respawn-card">
+            <h2>SHIP DESTROYED</h2>
+            <p>Your vessel has been lost in action.</p>
+            <div class="respawn-stats">
+              <!-- Optional: show session stats here -->
+            </div>
+            <button @click="sendRespawn" class="respawn-btn">CLONE & RESUPPLY</button>
           </div>
         </div>
       </transition>
@@ -1003,6 +1029,67 @@ onUnmounted(() => {
   background: #ef4444;
   color: #fff;
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+}
+
+.respawn-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(5px);
+}
+
+.respawn-card {
+  text-align: center;
+  padding: 40px;
+  border: 2px solid #ef4444;
+  background: rgba(20, 0, 0, 0.9);
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+  max-width: 500px;
+}
+
+.respawn-card h2 {
+  color: #ef4444;
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 20px;
+  letter-spacing: 0.2rem;
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.respawn-card p {
+  color: #ccc;
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.respawn-btn {
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  padding: 12px 30px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.1rem;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .gameover-overlay {
