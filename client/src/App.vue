@@ -1,14 +1,15 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import Lobby from "./components/Lobby.vue";
 import GameView from "./components/GameView.vue";
 
-const currentView = ref('lobby');
-const activeRoomId = ref(null);
-const selectedFaction = ref(null);
-const selectedShip = ref(null);
-const authToken = ref(null);
+const currentView = ref(localStorage.getItem('game_view') || 'lobby');
+const activeRoomId = ref(localStorage.getItem('active_room_id'));
+const selectedFaction = ref(localStorage.getItem('selected_faction'));
+const selectedShip = ref(localStorage.getItem('selected_ship'));
+const authToken = ref(localStorage.getItem('auth_token'));
 const allFactions = ref([]);
+const leaveTriggered = ref(false);
 
 const handleJoin = (data) => {
   activeRoomId.value = data.roomId;
@@ -16,7 +17,14 @@ const handleJoin = (data) => {
   selectedShip.value = data.ship;
   authToken.value = data.token;
   currentView.value = 'game';
+  
+  localStorage.setItem('game_view', 'game');
+  localStorage.setItem('active_room_id', data.roomId);
+  localStorage.setItem('selected_faction', data.faction);
+  localStorage.setItem('selected_ship', data.ship);
+  
   console.log("Navigating to game for room:", data.roomId, "as", data.faction);
+  leaveTriggered.value = false;
 };
 
 const handleFactionsLoaded = (factions) => {
@@ -24,8 +32,19 @@ const handleFactionsLoaded = (factions) => {
 };
 
 const backToLobby = () => {
+  leaveTriggered.value = true;
+};
+
+const handleFinalLeave = () => {
+  if (activeRoomId.value) {
+    localStorage.removeItem(`session_${activeRoomId.value}`);
+  }
   currentView.value = 'lobby';
   activeRoomId.value = null;
+  localStorage.removeItem('game_view');
+  localStorage.removeItem('active_room_id');
+  localStorage.removeItem('selected_faction');
+  localStorage.removeItem('selected_ship');
 };
 </script>
 
@@ -49,7 +68,8 @@ const backToLobby = () => {
             :ship="selectedShip"
             :factions="allFactions"
             :token="authToken"
-            @leave="backToLobby"
+            :isLeaving="leaveTriggered"
+            @leave="handleFinalLeave"
           />
         </div>
       </div>

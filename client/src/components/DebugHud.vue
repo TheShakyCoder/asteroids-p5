@@ -15,7 +15,7 @@ const props = defineProps({
 
 <template>
   <div v-if="myPlayer"
-    style="position: absolute; font-size: 2rem; color: white; z-index: 100; top: 10px; left: 20px;">
+    style="position: absolute; font-size: 1.5rem; color: white; z-index: 100; top: 10px; left: 20px;">
     <h2>Player Debug</h2>
     <dl>
       <dt>Link:</dt>
@@ -33,7 +33,7 @@ const props = defineProps({
       <dt>Camera [c]</dt>
       <dd>{{ cameraRotationActive ? 'SHIP ALIGNED' : 'WORLD ALIGNED' }}</dd>
       <dt>Target [t]:</dt>
-      <dd>{{ targetData ? targetData.name : 'NONE' }}</dd>
+      <dd>{{ targetData ? targetData.name : 'NONE' }} <span v-if="targetData && !targetData.connected" style="color: #ff3b30; font-size: 0.8rem; font-weight: bold;">(OFFLINE)</span></dd>
       <template v-if="targetData">
         <dt>T-Hull:</dt>
         <dd class="status-bar-container">

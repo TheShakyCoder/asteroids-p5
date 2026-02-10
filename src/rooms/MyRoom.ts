@@ -1040,10 +1040,19 @@ export class MyRoom extends Room {
     const factionId = options.faction || "humans";
     const faction = this.state.factions.get(factionId);
     const shipSpec = ships.find(s => s.id === options.ship) || ships[0];
+    const username = auth?.username || `Guest-${client.sessionId}`;
+
+    // Prevent double ships ifjoining fresh while a ghosting ship still exists
+    this.state.players.forEach((p, sessionId) => {
+        if (p.name === username && sessionId !== client.sessionId) {
+            console.log(`Removing ghosting ship for ${username} to allow new join.`);
+            this.state.players.delete(sessionId);
+        }
+    });
 
     const player = new Player();
     player.id = client.sessionId;
-    player.name = auth?.username || `Guest-${client.sessionId}`;
+    player.name = username;
     player.faction = factionId;
     player.shipClass = shipSpec.id;
     const angle = Math.random() * Math.PI * 2;
@@ -1077,10 +1086,31 @@ export class MyRoom extends Room {
     this.updateMetadata();
   }
 
-  onLeave(client: Client, code: CloseCode) {
+  async onLeave(client: Client, code: number) {
     console.log(client.sessionId, "left!", code);
-    this.state.players.delete(client.sessionId);
-    this.updateMetadata();
+    
+    // Clear inputs immediately so the ship doesn't fly off forever or keep firing
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      player.connected = false;
+      player.input.w = false;
+      player.input.a = false;
+      player.input.s = false;
+      player.input.d = false;
+      player.targetId = ""; // Optional: stop firing
+    }
+    
+    try {
+      // Leave the ship ingame for 10 seconds to allow for reconnection or grace period
+      await this.allowReconnection(client, 10);
+      console.log(`Player ${client.sessionId} reconnected!`);
+      if (player) player.connected = true;
+      
+    } catch (e) {
+      console.log(`Player ${client.sessionId} cleanup after 10s grace period.`);
+      this.state.players.delete(client.sessionId);
+      this.updateMetadata();
+    }
   }
 
   onDispose() {

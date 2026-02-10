@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed, reactive } from 'vue';
+import { onMounted, onUnmounted, ref, computed, reactive, watch } from 'vue';
 import { Client } from '@colyseus/sdk';
 import p5 from 'p5';
 import { Ship } from '../entities/Ship.js';
@@ -15,7 +15,8 @@ const props = defineProps({
   faction: String,
   ship: String,
   factions: Array,
-  token: String
+  token: String,
+  isLeaving: Boolean
 });
 
 const emit = defineEmits(['leave']);
@@ -46,6 +47,8 @@ const gameStatus = ref("active");
 const winner = ref("");
 const serverVersion = ref("0.0.0");
 const clientVersion = ref(import.meta.env.VITE_CLIENT_VERSION || "0.0.0");
+const leavingCountdown = ref(0);
+let leavingInterval: any = null;
 
 const targetEntity = computed(() => {
   if (!myPlayer.value || !room || !room.state) return 'NONE';
@@ -109,7 +112,8 @@ const targetData = computed(() => {
     armor: entity.armor || 0,
     maxArmor: maxArmor,
     hullPct: Math.max(0, (entity.hull || 0) / (maxHull || 1)),
-    armorPct: Math.max(0, (entity.armor || 0) / (maxArmor || 1))
+    armorPct: Math.max(0, (entity.armor || 0) / (maxArmor || 1)),
+    connected: (entity as any).connected !== undefined ? (entity as any).connected : true
   };
 });
 
@@ -214,13 +218,31 @@ const connect = async () => {
     // Critical for DDEV/Multi-container setups
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    console.log(`Connecting to sector ${targetRoomId}...`);
+    const lastSessionId = localStorage.getItem(`session_${targetRoomId}`);
 
-    room = await client.joinById(targetRoomId, {
-      faction: props.faction,
-      ship: props.ship,
-      token: props.token
-    });
+    if (lastSessionId) {
+      console.log(`Attempting to reconnect to sector ${targetRoomId} with session ${lastSessionId}...`);
+      try {
+        room = await client.reconnect(targetRoomId, lastSessionId);
+        console.log("Reconnected successfully:", room.sessionId);
+      } catch (e) {
+        console.warn("Reconnection failed, starting fresh deployment...", e);
+        room = await client.joinById(targetRoomId, {
+          faction: props.faction,
+          ship: props.ship,
+          token: props.token
+        });
+      }
+    } else {
+      console.log(`Connecting to sector ${targetRoomId}...`);
+      room = await client.joinById(targetRoomId, {
+        faction: props.faction,
+        ship: props.ship,
+        token: props.token
+      });
+    }
+
+    localStorage.setItem(`session_${targetRoomId}`, room.sessionId);
 
     connectionStatus.value = 'STABLE';
     console.log("Joined successfully:", room.sessionId);
@@ -276,7 +298,7 @@ const sketch = (p) => {
   };
 
   const handleInputs = () => {
-    if (!room) return;
+    if (!room || props.isLeaving) return;
     room.send("input", moveKeys);
   };
 
@@ -731,6 +753,20 @@ const sketch = (p) => {
   };
 };
 
+watch(() => props.isLeaving, (newVal) => {
+  if (newVal && leavingCountdown.value === 0) {
+    leavingCountdown.value = 10;
+    leavingInterval = setInterval(() => {
+      leavingCountdown.value--;
+      if (leavingCountdown.value <= 0) {
+        clearInterval(leavingInterval);
+        if (room) room.leave();
+        emit('leave');
+      }
+    }, 1000);
+  }
+});
+
 onMounted(async () => {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
@@ -812,6 +848,18 @@ onUnmounted(() => {
               <!-- Optional: show session stats here -->
             </div>
             <button @click="sendRespawn" class="respawn-btn">CLONE & RESUPPLY</button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Leaving Countdown UI -->
+      <transition name="fade">
+        <div v-if="isLeaving" class="leaving-overlay">
+          <div class="leaving-card">
+            <h2>RETURNING TO BASE</h2>
+            <p>Your vessel is engaging warp drive for extraction.</p>
+            <div class="countdown-value">{{ leavingCountdown }}s</div>
+            <p class="warning">Neural link will terminate upon arrival.</p>
           </div>
         </div>
       </transition>
@@ -991,6 +1039,51 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   letter-spacing: 0.1rem;
+}
+
+.leaving-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  pointer-events: auto;
+}
+
+.leaving-card {
+  text-align: center;
+  padding: 40px;
+  background: rgba(15, 15, 25, 0.9);
+  border: 1px solid rgba(79, 172, 254, 0.5);
+  box-shadow: 0 0 30px rgba(79, 172, 254, 0.2);
+  border-radius: 20px;
+  max-width: 400px;
+}
+
+.leaving-card h2 {
+  color: #4facfe;
+  font-size: 1.8rem;
+  margin-bottom: 15px;
+  letter-spacing: 2px;
+}
+
+.leaving-card .countdown-value {
+  font-size: 4rem;
+  font-weight: bold;
+  color: #fff;
+  margin: 20px 0;
+  font-family: monospace;
+}
+
+.leaving-card .warning {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
 }
 
 .fade-enter-active,
