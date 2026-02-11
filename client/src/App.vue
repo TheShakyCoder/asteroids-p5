@@ -5,17 +5,15 @@ import GameView from "./components/GameView.vue";
 
 const currentView = ref('lobby');
 const activeRoomId = ref(null);
-const selectedFaction = ref(null);
-const selectedShip = ref(null);
+const selectedFaction = ref(localStorage.getItem('selected_faction'));
+const selectedShip = ref(localStorage.getItem('selected_ship'));
 const authToken = ref(localStorage.getItem('auth_token'));
 const allFactions = ref([]);
 const leaveTriggered = ref(false);
 
-// Clear game session items on boot to ensure we start in lobby
+// Clear only room-specific session items on boot to ensure we start in lobby
 localStorage.removeItem('game_view');
 localStorage.removeItem('active_room_id');
-localStorage.removeItem('selected_faction');
-localStorage.removeItem('selected_ship');
 
 provide('factions', allFactions);
 
@@ -34,15 +32,13 @@ const fetchFactions = async () => {
 onMounted(async () => {
   await fetchFactions();
   
-  // Cleanup on reload
+  // Cleanup only room-specific data on reload
   window.addEventListener('beforeunload', () => {
     if (activeRoomId.value) {
       localStorage.removeItem(`session_${activeRoomId.value}`);
     }
     localStorage.removeItem('game_view');
     localStorage.removeItem('active_room_id');
-    localStorage.removeItem('selected_faction');
-    localStorage.removeItem('selected_ship');
   });
 });
 

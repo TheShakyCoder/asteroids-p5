@@ -1073,18 +1073,22 @@ export class MyRoom extends Room {
     player.id = client.sessionId;
     player.name = auth?.name || options.name || `Pilot ${client.sessionId.substring(0, 4)}`;
     
-    // Choose faction (balanced or random)
-    let humanCount = 0;
-    let martianCount = 0;
-    this.state.players.forEach(p => {
-        const pShip = this.state.ships.get(p.shipId);
-        if (pShip) {
-            if (pShip.faction === 'humans') humanCount++;
-            else if (pShip.faction === 'martians') martianCount++;
-        }
-    });
-    
-    const assignedFaction = (humanCount <= martianCount) ? 'humans' : 'martians';
+    // Choose faction (respect requested, fallback to balance)
+    let assignedFaction = options.faction;
+    const isValidFaction = assignedFaction && this.state.factions.has(assignedFaction);
+
+    if (!isValidFaction) {
+      let humanCount = 0;
+      let martianCount = 0;
+      this.state.players.forEach(p => {
+          const pShip = this.state.ships.get(p.shipId);
+          if (pShip) {
+              if (pShip.faction === 'humans') humanCount++;
+              else if (pShip.faction === 'martians') martianCount++;
+          }
+      });
+      assignedFaction = (humanCount <= martianCount) ? 'humans' : 'martians';
+    }
     
     // Create Ship
     const ship = new Ship();

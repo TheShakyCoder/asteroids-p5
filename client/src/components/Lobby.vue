@@ -1,12 +1,30 @@
 <script setup>
-import { ref, onMounted, onUnmounted, inject, computed } from 'vue';
+import { ref, onMounted, onUnmounted, inject, computed, watch } from 'vue';
 import { Client } from '@colyseus/sdk';
 
 const rooms = ref([]);
 const factions = inject('factions', ref([]));
-const selectedFaction = ref(null);
+const selectedFaction = ref(localStorage.getItem('selected_faction'));
 const ships = ref([]);
-const selectedShip = ref(null);
+const selectedShip = ref(localStorage.getItem('selected_ship'));
+
+// Keep preferences in sync with localStorage
+watch(selectedFaction, (newVal) => {
+  if (newVal) localStorage.setItem('selected_faction', newVal);
+});
+watch(selectedShip, (newVal) => {
+  if (newVal) localStorage.setItem('selected_ship', newVal);
+});
+
+// Set initial faction when factions data arrives, but only if not already set
+watch(factions, (newFactions) => {
+  if (newFactions.length > 0 && !selectedFaction.value) {
+    const pickable = newFactions.filter(f => f.pickable);
+    if (pickable.length > 0) {
+      selectedFaction.value = pickable[0].id;
+    }
+  }
+}, { immediate: true });
 const loading = ref(true);
 const isConnecting = ref(true);
 const error = ref(null);
@@ -114,7 +132,7 @@ const fetchShips = async () => {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     ships.value = data;
-    if (data.length > 0) {
+    if (data.length > 0 && !selectedShip.value) {
       selectedShip.value = data[0].id;
     }
   } catch (e) {
@@ -169,11 +187,6 @@ onMounted(async () => {
       fetchShips()
     ]);
     refreshInterval = setInterval(fetchRooms, 3000);
-
-    // Initial faction selection if not already set
-    if (factions.value.length > 0 && !selectedFaction.value) {
-      selectedFaction.value = factions.value[0].id;
-    }
   } else {
     isConnecting.value = false;
     loading.value = false;
