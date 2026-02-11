@@ -11,8 +11,10 @@
   "scripts": {
     "start": "tsx watch src/index.ts",
     "loadtest": "tsx loadtest/example.ts --room my_room --numClients 2",
-    "build": "npm run clean && tsc -p tsconfig.build.json",
-    "clean": "rimraf build",
+    "build": "npm run clean && npm run build:client && npm run build:server",
+    "build:client": "cd client && npm run build",
+    "build:server": "tsc -p tsconfig.build.json",
+    "clean": "rimraf build public",
     "test": "mocha -r tsx test/**.test.ts --exit --timeout 15000"  },
   "author": "",
   "license": "UNLICENSED",
