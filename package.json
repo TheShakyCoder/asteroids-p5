@@ -1,7 +1,7 @@
 {
   "private": true,
-  "name": "my-app",
-  "version": "0.17.0",
+  "name": "asteroids",
+  "version": "0.1.0",
   "description": "npm init template for bootstrapping an empty Colyseus project",
   "type": "module",
   "main": "build/index.js",
@@ -9,15 +9,11 @@
     "node": ">= 20.9.0"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "bun run build/index.js",
+    "start": "tsx watch src/index.ts",
     "loadtest": "tsx loadtest/example.ts --room my_room --numClients 2",
-    "build:client": "cd client && bun install && NODE_OPTIONS=--max-old-space-size=4096 bun run build",
-    "build:server": "tsc -p tsconfig.build.json",
-    "build": "bun run clean && bun run build:client && bun run build:server",
-    "clean": "rimraf build public",
-    "test": "mocha -r tsx test/**.test.ts --exit --timeout 15000"
-  },
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "clean": "rimraf build",
+    "test": "mocha -r tsx test/**.test.ts --exit --timeout 15000"  },
   "author": "",
   "license": "UNLICENSED",
   "bugs": {
