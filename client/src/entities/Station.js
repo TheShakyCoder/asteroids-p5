@@ -99,7 +99,7 @@ export class Station extends Entity {
         const muzzleX = this.x + (tp.x * Math.cos(this.angle || 0) - tp.y * Math.sin(this.angle || 0));
         const muzzleY = this.y + (tp.x * Math.sin(this.angle || 0) + tp.y * Math.cos(this.angle || 0));
 
-        const target = roomState.players.get(this.targetId) || roomState.projectiles.get(this.targetId);
+        const target = roomState.ships.get(this.targetId) || roomState.projectiles.get(this.targetId);
 
         if (target) {
           p.push();

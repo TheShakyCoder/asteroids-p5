@@ -1,9 +1,9 @@
 <script setup lang="ts">
 const props = defineProps({
   myPlayer: Object,
+  myShip: Object,
   connectionStatus: String,
-  serverVersion: String,
-  clientVersion: String,
+  gameVersion: String,
   currentZoomIndex: Number,
   cameraRotationActive: Boolean,
   targetData: Object,
@@ -14,20 +14,18 @@ const props = defineProps({
 </script>
 
 <template>
-  <div v-if="myPlayer"
+  <div v-if="myPlayer && myShip"
     style="position: absolute; font-size: 1.5rem; color: white; z-index: 100; top: 10px; left: 20px;">
     <h2>Player Debug</h2>
     <dl>
       <dt>Link:</dt>
       <dd>{{ connectionStatus }}</dd>
-      <dt>S-Ver:</dt>
-      <dd>{{ serverVersion }}</dd>
-      <dt>C-Ver:</dt>
-      <dd>{{ clientVersion }}</dd>
+      <dt>Ver:</dt>
+      <dd>{{ gameVersion }}</dd>
       <dt>Position:</dt>
-      <dd>{{ Math.round(myPlayer.x || 0) }}, {{ Math.round(myPlayer.y || 0) }}</dd>
+      <dd>{{ Math.round(myShip.x || 0) }}, {{ Math.round(myShip.y || 0) }}</dd>
       <dt>Vector:</dt>
-      <dd>{{ Math.round(myPlayer.vx || 0) }}, {{ Math.round(myPlayer.vy || 0) }}</dd>
+      <dd>{{ Math.round(myShip.vx || 0) }}, {{ Math.round(myShip.vy || 0) }}</dd>
       <dt>Zoom [v]</dt>
       <dd>{{ currentZoomIndex === 0 ? 'CLOSEUP' : 'LONG-RANGE' }}</dd>
       <dt>Camera [c]</dt>
@@ -50,12 +48,12 @@ const props = defineProps({
       <dt>Hull:</dt>
       <dd class="status-bar-container">
         <div class="status-bar hull-bar" :class="{ low: hullPct < 0.3 }" :style="{ width: (hullPct * 100) + '%' }"></div>
-        <span class="status-val">{{ Math.round(myPlayer.hull) }}</span>
+        <span class="status-val">{{ Math.round(myShip.hull) }}</span>
       </dd>
       <dt>Armor:</dt>
       <dd class="status-bar-container">
         <div class="status-bar armor-bar" :style="{ width: (armorPct * 100) + '%' }"></div>
-        <span class="status-val">{{ Math.round(myPlayer.armor) }}</span>
+        <span class="status-val">{{ Math.round(myShip.armor) }}</span>
       </dd>
       <dt>Controls:</dt>
       <dd class="controls-grid">

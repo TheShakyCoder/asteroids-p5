@@ -85,6 +85,10 @@ const server = defineServer({
             res.json(weapons);
         });
 
+        app.get("/api/version", (req, res) => {
+            res.send(process.env.GAME_VERSION);
+        });
+
         app.get("/hi", (req, res) => {
             res.send("It's time to kick ass and chew bubblegum!");
         });

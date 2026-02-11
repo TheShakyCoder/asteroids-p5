@@ -45,17 +45,22 @@ const myPlayer = ref(null);
 const gameOverTimeLeft = ref(0);
 const gameStatus = ref("active");
 const winner = ref("");
-const serverVersion = ref("0.0.0");
-const clientVersion = ref(import.meta.env.VITE_CLIENT_VERSION || "0.0.0");
+const gameVersion = ref("0.0.0");
 const leavingCountdown = ref(0);
 let leavingInterval: any = null;
 
+const myShipId = computed(() => myPlayer.value?.shipId);
+const myShip = computed(() => {
+  if (!myShipId.value || !room || !room.state) return null;
+  return room.state.ships.get(myShipId.value);
+});
+
 const targetEntity = computed(() => {
-  if (!myPlayer.value || !room || !room.state) return 'NONE';
-  const targetId = myPlayer.value.targetId;
+  if (!myShip.value || !room || !room.state) return 'NONE';
+  const targetId = myShip.value.targetId;
   if (!targetId) return 'NONE';
 
-  const entity = room.state.players.get(targetId) ||
+  const entity = room.state.ships.get(targetId) ||
     room.state.stations.get(targetId) ||
     room.state.projectiles.get(targetId);
 
@@ -63,27 +68,27 @@ const targetEntity = computed(() => {
 });
 
 const shipStats = computed(() => {
-  if (!myPlayer.value) return { hull: 100, armor: 0 };
-  const spec = shipConfigs.value.find(s => s.id === myPlayer.value.shipClass);
+  if (!myShip.value) return { hull: 100, armor: 0 };
+  const spec = shipConfigs.value.find(s => s.id === myShip.value.shipClass);
   return spec ? spec.stats : { hull: 100, armor: 0 };
 });
 
 const hullPct = computed(() => {
-  if (!myPlayer.value) return 0;
-  return Math.max(0, myPlayer.value.hull / (shipStats.value.hull || 100));
+  if (!myShip.value) return 0;
+  return Math.max(0, myShip.value.hull / (shipStats.value.hull || 100));
 });
 
 const armorPct = computed(() => {
-  if (!myPlayer.value) return 0;
-  return Math.max(0, myPlayer.value.armor / (shipStats.value.armor || 1));
+  if (!myShip.value) return 0;
+  return Math.max(0, myShip.value.armor / (shipStats.value.armor || 1));
 });
 
 const targetData = computed(() => {
-  if (!myPlayer.value || !room || !room.state) return null;
-  const targetId = myPlayer.value.targetId;
+  if (!myShip.value || !room || !room.state) return null;
+  const targetId = myShip.value.targetId;
   if (!targetId) return null;
 
-  const entity = room.state.players.get(targetId) ||
+  const entity = room.state.ships.get(targetId) ||
     room.state.stations.get(targetId) ||
     room.state.projectiles.get(targetId);
 
@@ -92,8 +97,8 @@ const targetData = computed(() => {
   let maxHull = 100;
   let maxArmor = 1;
 
-  if (room.state.players.has(targetId)) {
-    const spec = shipConfigs.value.find(s => s.id === entity.shipClass);
+  if (room.state.ships.has(targetId)) {
+    const spec = shipConfigs.value.find(s => s.id === (entity as any).shipClass);
     maxHull = spec?.stats.hull || 100;
     maxArmor = spec?.stats.armor || 1;
   } else if (room.state.stations.has(targetId)) {
@@ -113,7 +118,7 @@ const targetData = computed(() => {
     maxArmor: maxArmor,
     hullPct: Math.max(0, (entity.hull || 0) / (maxHull || 1)),
     armorPct: Math.max(0, (entity.armor || 0) / (maxArmor || 1)),
-    connected: (entity as any).connected !== undefined ? (entity as any).connected : true
+    connected: true
   };
 });
 
@@ -180,6 +185,16 @@ const fetchWeapons = async () => {
     allWeapons.value = await response.json();
   } catch (e) {
     console.error("Error fetching weapons", e);
+  }
+};
+
+const fetchVersion = async () => {
+  try {
+    const baseUrl = import.meta.env.VITE_SERVER_URL || '';
+    const response = await fetch(`${baseUrl}/api/version`);
+    gameVersion.value = await response.text();
+  } catch (e) {
+    console.error("Error fetching version", e);
   }
 };
 
@@ -250,15 +265,16 @@ const connect = async () => {
     room.onStateChange((state) => {
       const me = state.players.get(room.sessionId);
       if (me) {
-        // Trigger Vue reactivity by creating a new reference
         myPlayer.value = { ...me };
-        isDead.value = me.isDead;
-        isDocked.value = me.isDocked;
+        const myShipData = state.ships.get(me.shipId);
+        if (myShipData) {
+          isDead.value = myShipData.isDead;
+          isDocked.value = myShipData.isDocked;
+        }
       }
 
       gameStatus.value = state.gameStatus;
       winner.value = state.winner;
-      serverVersion.value = (state as any).serverVersion || "N/A";
       if (state.gameOverTime > 0) {
         gameOverTimeLeft.value = Math.max(0, state.gameOverTime - state.serverTime);
       }
@@ -317,28 +333,31 @@ const sketch = (p) => {
       return;
     }
 
-    const myPlayer = room.state.players.get(room.sessionId);
-    if (!myPlayer) return;
+    const me = room.state.players.get(room.sessionId);
+    if (!me) return;
+    
+    const myShip = room.state.ships.get(me.shipId);
+    if (!myShip) return;
 
     handleInputs();
 
     const zoom = zoomLevels.value[currentZoomIndex.value] || 0.1;
-    const factionColor = getFactionColor(myPlayer.faction);
+    const factionColor = getFactionColor(myShip.faction);
 
     // --- APPLY CAMERA ---
     p.push();
     p.translate(p.width / 2, p.height / 2);
 
     // NEW: Rotate world so my ship always faces up
-    if (cameraRotationActive.value) {
-      p.rotate(-myPlayer.angle);
+    if (cameraRotationActive.value && myShip.value) {
+      p.rotate(-myShip.value.angle);
     }
 
     p.scale(zoom);
 
-    // Everything from here is in World Coordinates (translated so myPlayer is at screen center)
-    // We need to offset by -myPlayer position so myPlayer appears at (0,0) in our local camera space
-    p.translate(-myPlayer.x, -myPlayer.y);
+    // Everything from here is in World Coordinates (translated so myShip is at screen center)
+    // We need to offset by -myShip position so myShip appears at (0,0) in our local camera space
+    p.translate(-myShip.x, -myShip.y);
 
     // DRAW GRID
     const gridSpacing = 1000;
@@ -350,28 +369,28 @@ const sketch = (p) => {
     const viewHalfWidth = (p.width / 2) / zoom;
     const viewHalfHeight = (p.height / 2) / zoom;
 
-    const startX = Math.floor((myPlayer.x - viewHalfWidth) / gridSpacing) * gridSpacing;
-    const endX = Math.ceil((myPlayer.x + viewHalfWidth) / gridSpacing) * gridSpacing;
-    const startY = Math.floor((myPlayer.y - viewHalfHeight) / gridSpacing) * gridSpacing;
-    const endY = Math.ceil((myPlayer.y + viewHalfHeight) / gridSpacing) * gridSpacing;
+    const startX = Math.floor((myShip.x - viewHalfWidth) / gridSpacing) * gridSpacing;
+    const endX = Math.ceil((myShip.x + viewHalfWidth) / gridSpacing) * gridSpacing;
+    const startY = Math.floor((myShip.y - viewHalfHeight) / gridSpacing) * gridSpacing;
+    const endY = Math.ceil((myShip.y + viewHalfHeight) / gridSpacing) * gridSpacing;
 
     // Vertical lines
     for (let x = startX; x <= endX; x += gridSpacing) {
-      p.line(x, myPlayer.y - viewHalfHeight, x, myPlayer.y + viewHalfHeight);
+      p.line(x, myShip.y - viewHalfHeight, x, myShip.y + viewHalfHeight);
     }
 
     // Horizontal lines
     for (let y = startY; y <= endY; y += gridSpacing) {
-      p.line(myPlayer.x - viewHalfWidth, y, myPlayer.x + viewHalfWidth, y);
+      p.line(myShip.x - viewHalfWidth, y, myShip.x + viewHalfWidth, y);
     }
 
     // DRAW ASTEROIDS
     if (room.state.asteroidObjects) {
       room.state.asteroidObjects.forEach((asteroid) => {
-        if (asteroid.x + asteroid.radius < myPlayer.x - viewHalfWidth ||
-          asteroid.x - asteroid.radius > myPlayer.x + viewHalfWidth ||
-          asteroid.y + asteroid.radius < myPlayer.y - viewHalfHeight ||
-          asteroid.y - asteroid.radius > myPlayer.y + viewHalfHeight) {
+        if (asteroid.x + asteroid.radius < myShip.x - viewHalfWidth ||
+          asteroid.x - asteroid.radius > myShip.x + viewHalfWidth ||
+          asteroid.y + asteroid.radius < myShip.y - viewHalfHeight ||
+          asteroid.y - asteroid.radius > myShip.y + viewHalfHeight) {
           return;
         }
 
@@ -400,27 +419,27 @@ const sketch = (p) => {
       }
 
       const sColor = getFactionColor(station.faction);
-      const camAngle = cameraRotationActive.value ? -myPlayer.angle : 0;
-      entity.draw(p, zoom, sColor, myPlayer.targetId === station.id, room.state, camAngle);
+      const camAngle = cameraRotationActive.value ? -myShip.angle : 0;
+      entity.draw(p, zoom, sColor, myShip.targetId === station.id, room.state, camAngle);
     });
 
-    // DRAW ALL PLAYERS
-    room.state.players.forEach((player) => {
-      let entity = shipsCache.get(player.id);
+    // DRAW ALL SHIPS
+    room.state.ships.forEach((ship) => {
+      let entity = shipsCache.get(ship.id);
       if (!entity) {
-        entity = new Ship(player);
-        shipsCache.set(player.id, entity);
+        entity = new Ship(ship);
+        shipsCache.set(ship.id, entity);
       } else {
-        entity.update(player);
+        entity.update(ship);
       }
 
-      const pColor = getFactionColor(player.faction);
-      const camAngle = cameraRotationActive.value ? -myPlayer.angle : 0;
+      const pColor = getFactionColor(ship.faction);
+      const camAngle = cameraRotationActive.value ? -myShip.angle : 0;
       entity.draw(p, zoom, pColor, shipConfigs.value, allWeapons.value, room.state, camAngle);
 
-      if (myPlayer.targetId === player.id) {
+      if (myShip.targetId === ship.id) {
         p.push();
-        p.translate(player.x, player.y);
+        p.translate(ship.x, ship.y);
         p.stroke('#ff3b30');
         p.strokeWeight(2 / zoom);
         p.noFill();
@@ -442,7 +461,7 @@ const sketch = (p) => {
       const pColor = getFactionColor(proj.faction);
       entity.draw(p, zoom, pColor);
 
-      if (myPlayer.targetId === proj.id) {
+      if (myShip.targetId === proj.id) {
         p.push();
         p.translate(proj.x, proj.y);
         p.stroke('#ff3b30');
@@ -454,8 +473,8 @@ const sketch = (p) => {
     });
 
     // Cleanup Cache
-    if (shipsCache.size > room.state.players.size) {
-      for (const [id] of shipsCache) if (!room.state.players.has(id)) shipsCache.delete(id);
+    if (shipsCache.size > room.state.ships.size) {
+      for (const [id] of shipsCache) if (!room.state.ships.has(id)) shipsCache.delete(id);
     }
     if (projectilesCache.size > room.state.projectiles.size) {
       for (const [id] of projectilesCache) if (!room.state.projectiles.has(id)) projectilesCache.delete(id);
@@ -464,14 +483,14 @@ const sketch = (p) => {
     // --- UI HUD (Immersive Overlay) ---
     p.pop(); // Exit World/Camera space
 
-    const shipSpec = shipConfigs.value.find(s => s.id === myPlayer.shipClass);
+    const shipSpec = shipConfigs.value.find(s => s.id === myShip.shipClass);
 
     // DOCKING PROMPT
-    const homeStationId = `base_${myPlayer.faction}`;
+    const homeStationId = `base_${myShip.faction}`;
     const homeStation = room.state.stations.get(homeStationId);
     if (homeStation) {
-      const distToHome = Math.sqrt((homeStation.x - myPlayer.x) ** 2 + (homeStation.y - myPlayer.y) ** 2);
-      if (distToHome <= 1500 && !myPlayer.isDocked && !myPlayer.isDocking) {
+      const distToHome = Math.sqrt((homeStation.x - myShip.x) ** 2 + (homeStation.y - myShip.y) ** 2);
+      if (distToHome <= 1500 && !myShip.isDocked && !myShip.isDocking) {
         p.push();
         p.textAlign(p.CENTER, p.CENTER);
         p.textSize(20);
@@ -481,8 +500,8 @@ const sketch = (p) => {
       }
     }
 
-    if (myPlayer.isDocking) {
-      const elapsed = Date.now() - myPlayer.dockingStartTime;
+    if (myShip.isDocking) {
+      const elapsed = Date.now() - myShip.dockingStartTime;
       const progress = Math.min(1, elapsed / 5000);
 
       p.push();
@@ -498,7 +517,7 @@ const sketch = (p) => {
       p.pop();
     }
 
-    if (myPlayer.isDocked) {
+    if (myShip.isDocked) {
       p.push();
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(30);
@@ -550,8 +569,8 @@ const sketch = (p) => {
       p.noStroke();
       p.fill(255, 255, 255, 30);
       room.state.asteroidObjects.forEach((asteroid) => {
-        const dx = asteroid.x - myPlayer.x;
-        const dy = asteroid.y - myPlayer.y;
+        const dx = asteroid.x - myShip.x;
+        const dy = asteroid.y - myShip.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance <= radarRadius) {
           p.ellipse(dx * radarScale, dy * radarScale, Math.max(1, asteroid.radius * radarScale * 2));
@@ -573,23 +592,23 @@ const sketch = (p) => {
     p.textAlign(p.CENTER, p.BOTTOM);
     p.text("LR-SENSOR [5000m]", 0, -radarSize / 2 - 5);
 
-    // Draw Blips for all players
-    room.state.players.forEach((player) => {
-      if (player.isDead || player.isDocked) return;
-      const dx = player.x - myPlayer.x;
-      const dy = player.y - myPlayer.y;
+    // Draw Blips for all ships
+    room.state.ships.forEach((ship) => {
+      if (ship.isDead || ship.isDocked) return;
+      const dx = ship.x - myShip.x;
+      const dy = ship.y - myShip.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= radarRadius) {
         const blipX = dx * radarScale;
         const blipY = dy * radarScale;
-        const isSelf = player.id === myPlayer.id;
-        const pColor = getFactionColor(player.faction);
+        const isSelf = ship.id === myShip.id;
+        const pColor = getFactionColor(ship.faction);
 
         p.push();
         if (isSelf) {
           // Self indicator - Clearly visible triangle pointing in facing direction
-          p.rotate(myPlayer.angle || 0);
+          p.rotate(myShip.angle || 0);
           p.fill(255);
           p.noStroke();
           // Draw a sharp triangle pointing UP (negative Y)
@@ -605,7 +624,7 @@ const sketch = (p) => {
           p.ellipse(blipX, blipY, 5);
 
           // Add a faint glow for targets
-          if (myPlayer.targetId === player.id) {
+          if (myShip.targetId === ship.id) {
             p.noFill();
             p.stroke(pColor);
             p.strokeWeight(1);
@@ -624,8 +643,8 @@ const sketch = (p) => {
     room.state.projectiles.forEach((proj) => {
       if (proj.type !== 'drone' && proj.type !== 'missile') return;
 
-      const dx = proj.x - myPlayer.x;
-      const dy = proj.y - myPlayer.y;
+      const dx = proj.x - myShip.x;
+      const dy = proj.y - myShip.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= radarRadius) {
@@ -638,7 +657,7 @@ const sketch = (p) => {
         p.noStroke();
         p.ellipse(blipX, blipY, 3); // Smaller than players
 
-        if (myPlayer.targetId === proj.id) {
+        if (myShip.targetId === proj.id) {
           p.noFill();
           p.stroke(pColor);
           p.strokeWeight(1);
@@ -652,12 +671,12 @@ const sketch = (p) => {
 
     // Draw Blips for Stations (with directional markers for bases)
     room.state.stations.forEach((station) => {
-      const dx = station.x - myPlayer.x;
-      const dy = station.y - myPlayer.y;
+      const dx = station.x - myShip.x;
+      const dy = station.y - myShip.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const angle = Math.atan2(dy, dx);
       const isBase = station.id.startsWith('base_');
-      const isHome = station.faction === myPlayer.faction;
+      const isHome = station.faction === myShip.faction;
       const sColor = getFactionColor(station.faction);
 
       if (distance <= radarRadius) {
@@ -678,7 +697,7 @@ const sketch = (p) => {
           p.text(isHome ? 'HOME' : 'BASE', blipX, blipY - 6);
         }
 
-        if (myPlayer.targetId === station.id) {
+        if (myShip.targetId === station.id) {
           p.noFill();
           p.stroke(sColor);
           p.strokeWeight(1);
@@ -722,7 +741,7 @@ const sketch = (p) => {
       p.rectMode(p.CENTER);
       p.rect(p.width / 2, p.height / 2, p.width, p.height);
 
-      const isWinner = room.state.winner === myPlayer.faction;
+      const isWinner = room.state.winner === myShip.faction;
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(80);
       p.textStyle(p.BOLD);
@@ -773,7 +792,8 @@ onMounted(async () => {
 
   await Promise.all([
     fetchShipConfigs(),
-    fetchWeapons()
+    fetchWeapons(),
+    fetchVersion()
   ]);
 
   await connect();
@@ -798,9 +818,9 @@ onUnmounted(() => {
 
     <DebugHud 
       :my-player="myPlayer"
+      :my-ship="myShip"
       :connection-status="connectionStatus"
-      :server-version="serverVersion"
-      :client-version="clientVersion"
+      :game-version="gameVersion"
       :current-zoom-index="currentZoomIndex"
       :camera-rotation-active="cameraRotationActive"
       :target-data="targetData"

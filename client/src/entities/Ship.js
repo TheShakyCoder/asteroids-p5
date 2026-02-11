@@ -124,7 +124,7 @@ export class Ship extends Entity {
     const fireDuration = weaponDef.fireDuration || 150;
 
     if (now - lastFire < fireDuration && lastFire > 0) {
-      const target = roomState.players.get(this.targetId) || 
+      const target = roomState.ships.get(this.targetId) || 
                      roomState.stations.get(this.targetId) ||
                      roomState.projectiles.get(this.targetId);
       

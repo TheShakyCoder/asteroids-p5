@@ -1,6 +1,7 @@
 import { Room, Client, CloseCode, matchMaker } from "colyseus";
 import { MyRoomState } from "./schema/MyRoomState.js";
 import { Player } from "./schema/Player.js";
+import { Ship } from "./schema/Ship.js";
 import { Station } from "./schema/Station.js";
 import { Projectile } from "./schema/Projectile.js";
 import { Asteroid } from "./schema/Asteroid.js";
@@ -73,7 +74,6 @@ export class MyRoom extends Room {
         
         // Random size between 50 and 500
         asteroid.radius = 50 + Math.random() * 450;
-        asteroid.angle = Math.random() * Math.PI * 2;
         
         // Avoid spawning too close to bases (within 3000 units)
         let tooClose = false;
@@ -92,8 +92,10 @@ export class MyRoom extends Room {
 
     this.onMessage("toggle-weapon", (client, index: number) => {
       const player = this.state.players.get(client.sessionId);
-      if (player && player.weaponSlots[index] !== undefined) {
-        player.weaponSlots[index] = !player.weaponSlots[index];
+      if (!player) return;
+      const ship = this.state.ships.get(player.shipId);
+      if (ship && ship.weaponSlots[index] !== undefined) {
+        ship.weaponSlots[index] = !ship.weaponSlots[index];
       }
     });
 
@@ -101,14 +103,17 @@ export class MyRoom extends Room {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
+      const ship = this.state.ships.get(player.shipId);
+      if (!ship) return;
+
       let nearest: any = null;
       let minDist = Infinity;
 
-      this.state.players.forEach((other) => {
-        if (other.id === client.sessionId) return;
-        if (other.faction === player.faction || other.isDead || other.isDocked) return;
+      this.state.ships.forEach((other) => {
+        if (other.ownerId === client.sessionId) return;
+        if (other.faction === ship.faction || other.isDead || other.isDocked) return;
 
-        const dist = Math.sqrt((other.x - player.x) ** 2 + (other.y - player.y) ** 2);
+        const dist = Math.sqrt((other.x - ship.x) ** 2 + (other.y - ship.y) ** 2);
         if (dist < minDist) {
           minDist = dist;
           nearest = other;
@@ -117,32 +122,35 @@ export class MyRoom extends Room {
 
       // Include targetable projectiles (drones/missiles)
       this.state.projectiles.forEach((proj) => {
-        if (proj.faction === player.faction) return;
+        if (proj.faction === ship.faction) return;
         // Only target drones or missiles (standard bullets/beams aren't targetable)
         if (proj.type !== "drone" && proj.type !== "missile") return;
         
-        const dist = Math.sqrt((proj.x - player.x) ** 2 + (proj.y - player.y) ** 2);
+        const dist = Math.sqrt((proj.x - ship.x) ** 2 + (proj.y - ship.y) ** 2);
         if (dist < minDist) {
           minDist = dist;
           nearest = proj;
         }
       });
 
-      player.targetId = nearest ? (nearest as any).id : "";
-      console.log(`Player ${client.sessionId} targeting enemy ${player.targetId || 'NOTHING'}`);
+      ship.targetId = nearest ? (nearest as any).id : "";
+      console.log(`Player ${client.sessionId} targeting enemy ${ship.targetId || 'NOTHING'}`);
     });
 
     this.onMessage("target-object", (client) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
+      const ship = this.state.ships.get(player.shipId);
+      if (!ship) return;
+
       let nearest: any = null;
       let minDist = Infinity;
 
-      // Scan both players and stations
-      this.state.players.forEach((other) => {
-        if (other.id === client.sessionId || other.isDead || other.isDocked) return;
-        const dist = Math.sqrt((other.x - player.x) ** 2 + (other.y - player.y) ** 2);
+      // Scan both ships and stations
+      this.state.ships.forEach((other) => {
+        if (other.ownerId === client.sessionId || other.isDead || other.isDocked) return;
+        const dist = Math.sqrt((other.x - ship.x) ** 2 + (other.y - ship.y) ** 2);
         if (dist < minDist) {
           minDist = dist;
           nearest = other;
@@ -150,7 +158,7 @@ export class MyRoom extends Room {
       });
 
       this.state.stations.forEach((station) => {
-        const dist = Math.sqrt((station.x - player.x) ** 2 + (station.y - player.y) ** 2);
+        const dist = Math.sqrt((station.x - ship.x) ** 2 + (station.y - ship.y) ** 2);
         if (dist < minDist) {
           minDist = dist;
           nearest = station;
@@ -160,44 +168,53 @@ export class MyRoom extends Room {
       this.state.projectiles.forEach((proj) => {
         // Targetable objects include drones and missiles
         if (proj.type !== "drone" && proj.type !== "missile") return;
-        const dist = Math.sqrt((proj.x - player.x) ** 2 + (proj.y - player.y) ** 2);
+        const dist = Math.sqrt((proj.x - ship.x) ** 2 + (proj.y - ship.y) ** 2);
         if (dist < minDist) {
           minDist = dist;
           nearest = proj;
         }
       });
 
-      player.targetId = nearest ? (nearest as any).id : "";
-      console.log(`Player ${client.sessionId} targeting object ${player.targetId || 'NOTHING'}`);
+      ship.targetId = nearest ? (nearest as any).id : "";
+      console.log(`Player ${client.sessionId} targeting object ${ship.targetId || 'NOTHING'}`);
     });
 
     this.onMessage("dock", (client) => {
       const player = this.state.players.get(client.sessionId);
-      if (!player || player.isDead || player.isDocked || player.isDocking) return;
+      if (!player) return;
 
-      const stationId = `base_${player.faction}`;
+      const ship = this.state.ships.get(player.shipId);
+      if (!ship || ship.isDead || ship.isDocked || ship.isDocking) return;
+
+      const stationId = `base_${ship.faction}`;
       const station = this.state.stations.get(stationId);
       if (!station) return;
 
-      const dist = Math.sqrt((station.x - player.x) ** 2 + (station.y - player.y) ** 2);
+      const dist = Math.sqrt((station.x - ship.x) ** 2 + (station.y - ship.y) ** 2);
       if (dist <= 1500) {
-        player.isDocking = true;
-        player.dockingStartTime = Date.now();
+        ship.isDocking = true;
+        ship.dockingStartTime = Date.now();
         console.log(`Player ${player.id} STARTING DOCKING`);
       }
     });
 
     this.onMessage("undock", (client) => {
       const player = this.state.players.get(client.sessionId);
-      if (player && player.isDocked) {
-        player.isDocked = false;
-        console.log(`Player ${player.id} UNDOCKED`);
+      if (player) {
+         const ship = this.state.ships.get(player.shipId);
+         if (ship && ship.isDocked) {
+            ship.isDocked = false;
+            console.log(`Player ${player.id} UNDOCKED`);
+         }
       }
     });
 
     this.onMessage("buy-weapon", (client, data: { slotIndex: number, weaponId: string }) => {
       const player = this.state.players.get(client.sessionId);
-      if (!player || !player.isDocked) return;
+      if (!player) return;
+
+      const ship = this.state.ships.get(player.shipId);
+      if (!ship || !ship.isDocked) return;
 
       const weaponDef = weapons.find(w => w.id === data.weaponId);
       if (!weaponDef) return;
@@ -208,8 +225,8 @@ export class MyRoom extends Room {
 
       if (player.tylium >= cost) {
         player.tylium -= cost;
-        player.equippedWeapons[data.slotIndex] = data.weaponId;
-        player.weaponLevels[data.slotIndex] = level;
+        ship.equippedWeapons[data.slotIndex] = data.weaponId;
+        ship.weaponLevels[data.slotIndex] = level;
         
         if (!isOwned) {
           player.ownedWeapons.set(data.weaponId, 1);
@@ -222,10 +239,13 @@ export class MyRoom extends Room {
 
     this.onMessage("upgrade-weapon", (client, data: { slotIndex: number }) => {
       const player = this.state.players.get(client.sessionId);
-      if (!player || !player.isDocked) return;
+      if (!player) return;
 
-      const wId = player.equippedWeapons[data.slotIndex];
-      const currentLevel = player.weaponLevels[data.slotIndex] || 1;
+      const ship = this.state.ships.get(player.shipId);
+      if (!ship || !ship.isDocked) return;
+
+      const wId = ship.equippedWeapons[data.slotIndex];
+      const currentLevel = ship.weaponLevels[data.slotIndex] || 1;
       if (currentLevel >= 10) return; // Max level 10
 
       const weaponDef = weapons.find(w => w.id === wId);
@@ -237,7 +257,7 @@ export class MyRoom extends Room {
       if (player.tylium >= cost) {
         player.tylium -= cost;
         const newLevel = currentLevel + 1;
-        player.weaponLevels[data.slotIndex] = newLevel;
+        ship.weaponLevels[data.slotIndex] = newLevel;
         player.ownedWeapons.set(wId, newLevel);
         console.log(`Player ${player.id} UPGRADED weapon in slot ${data.slotIndex} to level ${newLevel}`);
       }
@@ -245,33 +265,33 @@ export class MyRoom extends Room {
 
     this.onMessage("change-ship", (client, data: { shipId: string }) => {
       const player = this.state.players.get(client.sessionId);
-      if (!player || !player.isDocked) return;
+      if (!player) return;
+
+      const ship = this.state.ships.get(player.shipId);
+      if (!ship || !ship.isDocked) return;
 
       const shipSpec = ships.find(s => s.id === data.shipId);
       if (!shipSpec) return;
 
-      // Cost to change ship: free for now, or maybe a set price? 
-      // Let's say it's free if you own it, but here we just let them change.
-      
-      player.shipClass = shipSpec.id;
-      player.hull = shipSpec.stats.hull;
-      player.armor = shipSpec.stats.armor;
-      player.weaponRadius = shipSpec.stats.weaponRadius;
+      ship.shipClass = shipSpec.id;
+      ship.hull = shipSpec.stats.hull;
+      ship.armor = shipSpec.stats.armor;
+      ship.weaponRadius = shipSpec.stats.weaponRadius;
 
       // Reset weapons to default for the new ship (but use owned levels if available)
-      player.equippedWeapons = [];
-      player.weaponLevels = [];
-      player.weaponSlots = [];
+      ship.equippedWeapons = [];
+      ship.weaponLevels = [];
+      ship.weaponSlots = [];
       
       if (shipSpec.weapons) {
         shipSpec.weapons.forEach((w, i) => {
-          player.weaponSlots.push(true);
-          player.equippedWeapons.push(w.weapon.id);
+          ship.weaponSlots.push(true);
+          ship.equippedWeapons.push(w.weapon.id);
           
           // Use owned level if available, otherwise default to starting level
           const ownedLevel = player.ownedWeapons.get(w.weapon.id);
           const startLevel = ownedLevel || w.weapon.level || 1;
-          player.weaponLevels.push(startLevel);
+          ship.weaponLevels.push(startLevel);
           
           if (!ownedLevel) {
             player.ownedWeapons.set(w.weapon.id, startLevel);
@@ -284,19 +304,25 @@ export class MyRoom extends Room {
 
     this.onMessage("input", (client, input) => {
       const player = this.state.players.get(client.sessionId);
-      if (player && !player.isDead) {
-        // Explicitly map inputs to ensure reference stays valid
-        player.input.w = !!input.w;
-        player.input.a = !!input.a;
-        player.input.s = !!input.s;
-        player.input.d = !!input.d;
+      if (player) {
+        const ship = this.state.ships.get(player.shipId);
+        if (ship && !ship.isDead) {
+          // Explicitly map inputs to ensure reference stays valid
+          player.input.w = !!input.w;
+          player.input.a = !!input.a;
+          player.input.s = !!input.s;
+          player.input.d = !!input.d;
+        }
       }
     });
 
     this.onMessage("respawn", (client) => {
       const player = this.state.players.get(client.sessionId);
-      if (player && player.isDead) {
-        this.respawnPlayer(player);
+      if (player) {
+        const ship = this.state.ships.get(player.shipId);
+        if (ship && ship.isDead) {
+          this.respawnPlayer(player);
+        }
       }
     });
 
@@ -316,59 +342,62 @@ export class MyRoom extends Room {
     const worldHalfHeight = this.state.height / 2;
 
     this.state.serverTime = Date.now();
-    this.state.players.forEach((player) => {
-      player.heartbeat++;
+    this.state.ships.forEach((ship) => {
+      const player = this.state.players.get(ship.ownerId);
+      if (player) {
+        player.heartbeat++;
+      }
       
-      if (player.isDead) {
-        player.vx = 0;
-        player.vy = 0;
+      if (ship.isDead) {
+        ship.vx = 0;
+        ship.vy = 0;
         return;
       }
 
       // --- DOCKING LOGIC ---
-      if (player.isDocking) {
-        const stationId = `base_${player.faction}`;
+      if (ship.isDocking) {
+        const stationId = `base_${ship.faction}`;
         const station = this.state.stations.get(stationId);
         if (station) {
-          const dist = Math.sqrt((station.x - player.x) ** 2 + (station.y - player.y) ** 2);
+          const dist = Math.sqrt((station.x - ship.x) ** 2 + (station.y - ship.y) ** 2);
           if (dist > 1500) {
-            player.isDocking = false;
-            console.log(`Player ${player.id} DOCKING CANCELLED (Too far)`);
-          } else if (Date.now() - player.dockingStartTime >= 5000) {
-            player.isDocking = false;
-            player.isDocked = true;
-            player.vx = 0;
-            player.vy = 0;
-            player.hull = ships.find(s => s.id === player.shipClass)?.stats.hull || player.hull;
-            player.armor = ships.find(s => s.id === player.shipClass)?.stats.armor || player.armor;
-            console.log(`Player ${player.id} DOCKING COMPLETE`);
+            ship.isDocking = false;
+            console.log(`Ship ${ship.id} DOCKING CANCELLED (Too far)`);
+          } else if (Date.now() - ship.dockingStartTime >= 5000) {
+            ship.isDocking = false;
+            ship.isDocked = true;
+            ship.vx = 0;
+            ship.vy = 0;
+            ship.hull = ships.find(s => s.id === ship.shipClass)?.stats.hull || ship.hull;
+            ship.armor = ships.find(s => s.id === ship.shipClass)?.stats.armor || ship.armor;
+            console.log(`Ship ${ship.id} DOCKING COMPLETE`);
 
-            // Clear any projectile locks on this player
+            // Clear any projectile locks on this ship
             this.state.projectiles.forEach(proj => {
-              if (proj.targetId === player.id) {
+              if (proj.targetId === ship.id) {
                 proj.targetId = "";
-                console.log(`Projectile ${proj.id} lost lock on docked player ${player.id}`);
+                console.log(`Projectile ${proj.id} lost lock on docked ship ${ship.id}`);
               }
             });
           }
         } else {
-          player.isDocking = false;
+          ship.isDocking = false;
         }
       }
 
-      if (player.isDocked) {
-        player.vx = 0;
-        player.vy = 0;
+      if (ship.isDocked) {
+        ship.vx = 0;
+        ship.vy = 0;
         // If they try to move, undock them
-        if (player.input.w || player.input.a || player.input.s || player.input.d) {
-          player.isDocked = false;
-          console.log(`Player ${player.id} UNDOCKED (Input detected)`);
+        if (player && (player.input.w || player.input.a || player.input.s || player.input.d)) {
+          ship.isDocked = false;
+          console.log(`Ship ${ship.id} UNDOCKED (Input detected)`);
         }
         return;
       }
 
-      // Find ship stats for this player
-      const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
+      // Find ship stats
+      const shipSpec = ships.find(s => s.id === ship.shipClass) || ships[0];
       const maxSpeed = (shipSpec.stats.maxVelocity) / 60;
       const acceleration = (shipSpec.stats.acceleration) / 60;
       // Convert deg/sec to rad/tick: (degrees * PI/180) * (deltaTime in seconds)
@@ -376,16 +405,18 @@ export class MyRoom extends Room {
       const friction = 1.0; // Space is a vacuum; no passive friction. Only S (brakes) will slow you down.
 
       // Update angle
-      if (player.input.a) player.angle -= rotationSpeed;
-      if (player.input.d) player.angle += rotationSpeed;
+      if (player) {
+          if (player.input.a) ship.angle -= rotationSpeed;
+          if (player.input.d) ship.angle += rotationSpeed;
+      }
 
-      const facingX = Math.sin(player.angle);
-      const facingY = -Math.cos(player.angle);
+      const facingX = Math.sin(ship.angle);
+      const facingY = -Math.cos(ship.angle);
 
       // Update velocity
-      if (player.input.w) {
-        player.vx += facingX * acceleration;
-        player.vy += facingY * acceleration;
+      if (player && player.input.w) {
+        ship.vx += facingX * acceleration;
+        ship.vy += facingY * acceleration;
       }
 
       // 1. Sideways (Lateral) Damping: reduces "icy" sliding.
@@ -393,62 +424,61 @@ export class MyRoom extends Room {
       const lateralDamping = shipSpec.stats.lateralDamping || 0.05;
       const rightX = -facingY;
       const rightY = facingX;
-      const lateralVel = player.vx * rightX + player.vy * rightY;
-      player.vx -= rightX * lateralVel * lateralDamping;
-      player.vy -= rightY * lateralVel * lateralDamping;
+      const lateralVel = ship.vx * rightX + ship.vy * rightY;
+      ship.vx -= rightX * lateralVel * lateralDamping;
+      ship.vy -= rightY * lateralVel * lateralDamping;
 
       // 2. Braking (S key)
-      if (player.input.s) {
+      if (player && player.input.s) {
         // Brake all momentum, not just forward.
         const brakingForce = acceleration * 1.5; // Reduced from 3x to 1.5x
-        const currentSpeed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+        const currentSpeed = Math.sqrt(ship.vx * ship.vx + ship.vy * ship.vy);
         if (currentSpeed > 0) {
           const reduction = Math.min(brakingForce, currentSpeed);
           const ratio = (currentSpeed - reduction) / currentSpeed;
-          player.vx *= ratio;
-          player.vy *= ratio;
+          ship.vx *= ratio;
+          ship.vy *= ratio;
         }
       }
 
       // Apply friction
-      player.vx *= friction;
-      player.vy *= friction;
+      ship.vx *= friction;
+      ship.vy *= friction;
 
       // Cap speed
-      const currentSpeed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+      const currentSpeed = Math.sqrt(ship.vx * ship.vx + ship.vy * ship.vy);
       if (currentSpeed > maxSpeed) {
-        player.vx = (player.vx / currentSpeed) * maxSpeed;
-        player.vy = (player.vy / currentSpeed) * maxSpeed;
+        ship.vx = (ship.vx / currentSpeed) * maxSpeed;
+        ship.vy = (ship.vy / currentSpeed) * maxSpeed;
       }
 
       // Update position
-      player.x += player.vx;
-      player.y += player.vy;
+      ship.x += ship.vx;
+      ship.y += ship.vy;
 
       // World wrapping (center at 0,0)
-      if (player.x < -worldHalfWidth) player.x = worldHalfWidth;
-      if (player.x > worldHalfWidth) player.x = -worldHalfWidth;
-      if (player.y < -worldHalfHeight) player.y = worldHalfHeight;
-      if (player.y > worldHalfHeight) player.y = -worldHalfHeight;
+      if (ship.x < -worldHalfWidth) ship.x = worldHalfWidth;
+      if (ship.x > worldHalfWidth) ship.x = -worldHalfWidth;
+      if (ship.y < -worldHalfHeight) ship.y = worldHalfHeight;
+      if (ship.y > worldHalfHeight) ship.y = -worldHalfHeight;
 
-      // 3. WEAPON FIRING LOGIC
-      if (player.targetId && shipSpec.weapons && !player.isDead) {
-        const target = this.state.players.get(player.targetId) || 
-                       this.state.stations.get(player.targetId) ||
-                       this.state.projectiles.get(player.targetId);
+      if (player && ship.targetId && shipSpec.weapons && !ship.isDead) {
+        const target = this.state.ships.get(ship.targetId) || 
+                       this.state.stations.get(ship.targetId) ||
+                       this.state.projectiles.get(ship.targetId);
         
         if (!target) {
             // Target is dead or gone, clear it
-            player.targetId = "";
+            ship.targetId = "";
         }
 
-        if (target && !(target instanceof Player && target.isDead)) {
+        if (target && !(target instanceof Ship && target.isDead)) {
           shipSpec.weapons.forEach((sw, i) => {
-            if (!player.weaponSlots[i]) return;
+            if (!ship.weaponSlots[i]) return;
 
-            // Use player's specific weapon and level
-            const wId = player.equippedWeapons[i];
-            const wLevel = player.weaponLevels[i] || 1;
+            // Use ship's specific weapon and level
+            const wId = ship.equippedWeapons[i];
+            const wLevel = ship.weaponLevels[i] || 1;
             
             if (!wId) return;
 
@@ -457,7 +487,7 @@ export class MyRoom extends Room {
 
             const lIdx = Math.max(0, wLevel - 1);
             const now = this.state.serverTime;
-            const lastFire = player.weaponLastFire.get(i.toString()) || 0;
+            const lastFire = ship.weaponLastFire.get(i.toString()) || 0;
 
             // Extract leveled stats
             const reload = Array.isArray(weaponDef.reload) ? weaponDef.reload[lIdx] : (weaponDef.reload as any || 1);
@@ -465,13 +495,13 @@ export class MyRoom extends Room {
 
             if (now - lastFire >= reloadMs) {
               // Calculate world muzzle position
-              const shipAngle = player.angle || 0;
+              const shipAngle = ship.angle || 0;
               const cosA = Math.cos(shipAngle);
               const sinA = Math.sin(shipAngle);
               const mX = -sw.mount.left;
               const mY = -sw.mount.front;
-              const muzzleWorldX = player.x + (mX * cosA - mY * sinA);
-              const muzzleWorldY = player.y + (mX * sinA + mY * cosA);
+              const muzzleWorldX = ship.x + (mX * cosA - mY * sinA);
+              const muzzleWorldY = ship.y + (mX * sinA + mY * cosA);
 
               // Distance check
               const dx = target.x - muzzleWorldX;
@@ -497,9 +527,8 @@ export class MyRoom extends Room {
 
                 const halfFovRad = (fov / 2) * Math.PI / 180;
                 if (Math.abs(angleDiff) <= halfFovRad) {
-                  // console.log(`Player ${player.id} FIRING at ${target.id} (Dist: ${distance.toFixed(1)}, Range: ${minRange}-${maxRange})`);
                   // FIRE!
-                  player.weaponLastFire.set(i.toString(), now);
+                  ship.weaponLastFire.set(i.toString(), now);
 
                   // 1. ROLL TO HIT (Autocannons only)
                   if (weaponDef.type === "Autocannon") {
@@ -508,15 +537,14 @@ export class MyRoom extends Room {
                       optimalRange: optRange,
                       maxRange,
                       distance,
-                      evasion: 0 // Placeholder until evasion is added to schema
+                      evasion: 0
                     });
 
                     if (!didHit) {
-                      // console.log(`Player ${player.id} MISSED ${target.id}`);
                       return;
                     }
 
-                    console.log(`Player ${player.id} HIT ${target.id} (Type: ${target.constructor.name})`);
+                    console.log(`Ship ${ship.id} HIT ${target.id}`);
                     // 2. APPLY DAMAGE (randomize between min and max)
                     const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
                     const hitResult = calculateHit({
@@ -527,10 +555,10 @@ export class MyRoom extends Room {
 
                     target.hull -= hitResult.finalHullDamage;
                     if (target.hull <= 0) {
-                      if (this.state.players.has(target.id)) {
-                        this.handlePlayerDeath(target as Player);
+                      if (this.state.ships.has(target.id)) {
+                        this.handleShipDeath(target as Ship);
                         player.tylium += 1500;
-                        console.log(`Player ${player.id} awarded 1500 Tylium for destroying Player ${target.id}`);
+                        console.log(`Player ${player.id} awarded 1500 Tylium for destroying Ship ${target.id}`);
                       } else if (this.state.projectiles.has(target.id)) {
                         this.state.projectiles.delete(target.id);
                         player.tylium += 100;
@@ -550,9 +578,9 @@ export class MyRoom extends Room {
                     const projectile = new Projectile();
                     projectile.id = `M_${Math.random().toString(8).substring(2, 9)}`;
                     projectile.type = "missile";
-                    projectile.faction = player.faction;
-                    projectile.ownerId = player.id;
-                    projectile.targetId = player.targetId;
+                    projectile.faction = ship.faction;
+                    projectile.ownerId = ship.id;
+                    projectile.targetId = ship.targetId;
                     projectile.x = muzzleWorldX;
                     projectile.y = muzzleWorldY;
                     // Start with ship's heading + mount rotation
@@ -570,13 +598,11 @@ export class MyRoom extends Room {
                     projectile.maxHull = 30;
                     projectile.createdAt = now;
                     
-                    // Dynamic lifespan: enough time to reach maxRange at maxSpeed + buffer
-                    // Assuming average 50ms simulation interval
                     const ticksToTarget = (maxRange / projectile.maxSpeed) * 1.5;
                     projectile.lifespan = Math.max(5000, ticksToTarget * 50);
 
                     this.state.projectiles.set(projectile.id, projectile);
-                    console.log(`Player ${player.id} launched missile at ${target.id}`);
+                    console.log(`Ship ${ship.id} launched missile at ${target.id}`);
                   }
                 }
               }
@@ -598,7 +624,7 @@ export class MyRoom extends Room {
 
       // Seeking logic
       if ((proj.type === "missile" || proj.type === "drone") && proj.targetId) {
-        const target = this.state.players.get(proj.targetId) || this.state.stations.get(proj.targetId) || this.state.projectiles.get(proj.targetId);
+        const target = this.state.ships.get(proj.targetId) || this.state.stations.get(proj.targetId) || this.state.projectiles.get(proj.targetId);
         if (target) {
           const dx = (target as any).x - proj.x;
           const dy = (target as any).y - proj.y;
@@ -614,7 +640,7 @@ export class MyRoom extends Room {
           proj.angle += Math.max(-proj.turnSpeed, Math.min(proj.turnSpeed, angleDiff));
 
           // Lost lock if target docked
-          if (target instanceof Player && target.isDocked) {
+          if (target instanceof Ship && target.isDocked) {
             proj.targetId = "";
             console.log(`Projectile ${proj.id} lost lock - target docked`);
           }
@@ -639,16 +665,16 @@ export class MyRoom extends Room {
       if (proj.type === "drone" || proj.type === "missile") {
         let hitDetected = false;
 
-        // Check players
-        this.state.players.forEach((p) => {
-          if (hitDetected || p.isDead || p.faction === proj.faction || p.isDocked) return;
+        // Check ships
+        this.state.ships.forEach((ship) => {
+          if (hitDetected || ship.isDead || ship.faction === proj.faction || ship.isDocked) return;
           
-          const dx = p.x - proj.x;
-          const dy = p.y - proj.y;
+          const dx = ship.x - proj.x;
+          const dy = ship.y - proj.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
           
           if (dist < 40) { // Impact radius for ships
-            this.processProjectileHit(proj, p);
+            this.processProjectileHit(proj, ship);
             hitDetected = true;
           }
         });
@@ -698,7 +724,7 @@ export class MyRoom extends Room {
       // Centralized Targeting Logic
       let currentTarget: any = null;
       if (station.targetId) {
-        currentTarget = this.state.players.get(station.targetId) || this.state.projectiles.get(station.targetId);
+        currentTarget = this.state.ships.get(station.targetId) || this.state.projectiles.get(station.targetId);
         // Validate target
         if (currentTarget) {
            const dist = Math.sqrt((currentTarget.x - station.x) ** 2 + (currentTarget.y - station.y) ** 2);
@@ -715,12 +741,12 @@ export class MyRoom extends Room {
         let nearest: any = null;
         let minDist = 2500; // Search range from center
 
-        this.state.players.forEach((p) => {
-          if (p.faction === station.faction || p.isDead || p.isDocked) return;
-          const dist = Math.sqrt((p.x - station.x) ** 2 + (p.y - station.y) ** 2);
+        this.state.ships.forEach((ship) => {
+          if (ship.faction === station.faction || ship.isDead || ship.isDocked) return;
+          const dist = Math.sqrt((ship.x - station.x) ** 2 + (ship.y - station.y) ** 2);
           if (dist < minDist) {
             minDist = dist;
-            nearest = p;
+            nearest = ship;
           }
         });
 
@@ -796,8 +822,8 @@ export class MyRoom extends Room {
                 });
                 currentTarget.hull -= hitResult.finalHullDamage;
                 if (currentTarget.hull <= 0) {
-                  if (this.state.players.has(currentTarget.id)) {
-                    this.handlePlayerDeath(currentTarget as Player);
+                  if (this.state.ships.has(currentTarget.id)) {
+                    this.handleShipDeath(currentTarget as Ship);
                   } else {
                     this.state.projectiles.delete(currentTarget.id);
                   }
@@ -910,29 +936,31 @@ export class MyRoom extends Room {
     console.log(`${proj.type} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)}`);
 
     if (target.hull <= 0) {
-      const attacker = this.state.players.get(proj.ownerId);
-      if (attacker) {
-          if (this.state.players.has(target.id)) {
-            this.handlePlayerDeath(target as Player);
-            attacker.tylium += 1500;
-            console.log(`Player ${attacker.id} awarded 1500 Tylium for destroying Player ${target.id} with ${proj.type}`);
-          } else if (this.state.stations.has(target.id)) {
-            // Station destroyed? 
-            const station = target as Station;
-            console.log(`STATION ${target.id} DESTROYED by ${attacker.id}!`);
-            this.triggerGameOver((station.faction === 'humans') ? 'martians' : 'humans');
-            attacker.tylium += 10000;
-            console.log(`Player ${attacker.id} awarded 10000 Tylium for destroying Station ${target.id}`);
-          }
-      } else {
-          // Non-player attacker (e.g. station turret)
-          if (this.state.players.has(target.id)) {
-            this.handlePlayerDeath(target as Player);
-          } else if (this.state.stations.has(target.id)) {
-            const station = target as Station;
-            console.log(`STATION ${target.id} DESTROYED!`);
-            this.triggerGameOver((station.faction === 'humans') ? 'martians' : 'humans');
-          }
+      if (this.state.ships.has(target.id)) {
+        const targetShip = target as Ship;
+        this.handleShipDeath(targetShip);
+        
+        const attackerShip = this.state.ships.get(proj.ownerId);
+        if (attackerShip) {
+            const attackerPlayer = this.state.players.get(attackerShip.ownerId);
+            if (attackerPlayer) {
+              attackerPlayer.tylium += 1500;
+              console.log(`Player ${attackerPlayer.id} awarded 1500 Tylium for destroying Ship ${target.id} with ${proj.type}`);
+            }
+        }
+      } else if (this.state.stations.has(target.id)) {
+        const station = target as Station;
+        console.log(`STATION ${target.id} DESTROYED by ${proj.ownerId}!`);
+        this.triggerGameOver((station.faction === 'humans') ? 'martians' : 'humans');
+        
+        const attackerShip = this.state.ships.get(proj.ownerId);
+        if (attackerShip) {
+            const attackerPlayer = this.state.players.get(attackerShip.ownerId);
+            if (attackerPlayer) {
+              attackerPlayer.tylium += 10000;
+              console.log(`Player ${attackerPlayer.id} awarded 10000 Tylium for destroying Station ${target.id}`);
+            }
+        }
       }
     }
     
@@ -964,18 +992,20 @@ export class MyRoom extends Room {
     }, 60000);
   }
 
-  handlePlayerDeath(player: Player) {
-    if (player.isDead) return;
-    console.log(`Player ${player.id} destroyed!`);
-    player.isDead = true;
-    player.hull = 0;
-    player.vx = 0;
-    player.vy = 0;
-    player.targetId = "";
+  handleShipDeath(ship: Ship) {
+    if (ship.isDead) return;
+    console.log(`Ship ${ship.id} destroyed!`);
+    ship.isDead = true;
+    ship.hull = 0;
+    ship.vx = 0;
+    ship.vy = 0;
 
-    // Retarget or clear projectiles targeting this player
+    const owner = this.state.players.get(ship.ownerId);
+    ship.targetId = ""; // No longer on owner
+
+    // Retarget or clear projectiles targeting this ship
     this.state.projectiles.forEach(proj => {
-      if (proj.targetId === player.id) {
+      if (proj.targetId === ship.id) {
         proj.targetId = ""; // Fly straight
       }
     });
@@ -983,41 +1013,42 @@ export class MyRoom extends Room {
 
   respawnPlayer(player: Player) {
     console.log(`Respawning player ${player.id}...`);
-    const faction = this.state.factions.get(player.faction);
-    const shipSpec = ships.find(s => s.id === player.shipClass) || ships[0];
+    const ship = this.state.ships.get(player.shipId);
+    if (!ship) return;
 
-    const stationId = `base_${player.faction}`;
+    const shipSpec = ships.find(s => s.id === ship.shipClass) || ships[0];
+    const stationId = `base_${ship.faction}`;
     const station = this.state.stations.get(stationId);
 
     if (station) {
-      player.x = station.x;
-      player.y = station.y;
-      player.isDocked = true;
+      ship.x = station.x;
+      ship.y = station.y;
+      ship.isDocked = true;
     } else {
-      const faction = this.state.factions.get(player.faction);
+      const faction = this.state.factions.get(ship.faction);
       const angle = Math.random() * Math.PI * 2;
       const spawnRadius = 500;
       const spawnX = faction ? faction.spawnX : 0;
       const spawnY = faction ? faction.spawnY : 0;
-      player.x = spawnX + Math.cos(angle) * spawnRadius;
-      player.y = spawnY + Math.sin(angle) * spawnRadius;
-      player.isDocked = false;
+      ship.x = spawnX + Math.cos(angle) * spawnRadius;
+      ship.y = spawnY + Math.sin(angle) * spawnRadius;
+      ship.isDocked = false;
     }
 
-    player.vx = 0;
-    player.vy = 0;
-    player.angle = 0;
-    player.hull = shipSpec.stats.hull;
-    player.armor = shipSpec.stats.armor;
-    player.isDead = false;
-    player.targetId = "";
+    ship.vx = 0;
+    ship.vy = 0;
+    ship.angle = 0;
+    ship.hull = shipSpec.stats.hull;
+    ship.armor = shipSpec.stats.armor;
+    ship.isDead = false;
+    ship.targetId = "";
     
     // Maintain weapons on respawn
-    if (player.equippedWeapons.length === 0 && shipSpec.weapons) {
+    if (ship.equippedWeapons.length === 0 && shipSpec.weapons) {
       shipSpec.weapons.forEach((w, i) => {
-        player.equippedWeapons.push(w.weapon.id);
-        player.weaponLevels.push(w.weapon.level || 1);
-        if (player.weaponSlots.length <= i) player.weaponSlots.push(true);
+        ship.equippedWeapons.push(w.weapon.id);
+        ship.weaponLevels.push(w.weapon.level || 1);
+        if (ship.weaponSlots.length <= i) ship.weaponSlots.push(true);
       });
     }
   }
@@ -1035,69 +1066,66 @@ export class MyRoom extends Room {
   }
 
   onJoin(client: Client, options: any, auth: any) {
-    console.log(client.sessionId, "joined with auth:", auth);
-
     const factionId = options.faction || "humans";
-    const faction = this.state.factions.get(factionId);
-    const shipSpec = ships.find(s => s.id === options.ship) || ships[0];
-    const username = auth?.username || `Guest-${client.sessionId}`;
-
-    // Prevent double ships ifjoining fresh while a ghosting ship still exists
-    this.state.players.forEach((p, sessionId) => {
-        if (p.name === username && sessionId !== client.sessionId) {
-            console.log(`Removing ghosting ship for ${username} to allow new join.`);
-            this.state.players.delete(sessionId);
-        }
-    });
-
+    const factionObj = this.state.factions.get(factionId);
+    const shipSpecObj = ships.find(s => s.id === options.ship) || ships[0];
+    console.log(client.sessionId, "joined!");
     const player = new Player();
     player.id = client.sessionId;
-    player.name = username;
-    player.faction = factionId;
-    player.shipClass = shipSpec.id;
-    const angle = Math.random() * Math.PI * 2;
-    const spawnRadius = 500;
-    const spawnX = faction ? faction.spawnX : 0;
-    const spawnY = faction ? faction.spawnY : 0;
-
-    player.x = spawnX + Math.cos(angle) * spawnRadius;
-    player.y = spawnY + Math.sin(angle) * spawnRadius;
-    player.angle = 0;
-    player.vx = 0;
-    player.vy = 0;
-    player.hull = shipSpec.stats.hull;
-    player.armor = shipSpec.stats.armor;
-    player.weaponRadius = shipSpec.stats.weaponRadius;
-
-    // Initialize weapon states
-    if (shipSpec.weapons) {
-      shipSpec.weapons.forEach((w, i) => {
-        player.weaponSlots.push(true);
-        player.weaponLastFire.set(i.toString(), 0);
-        player.equippedWeapons.push(w.weapon.id);
-        
-        const startLevel = w.weapon.level || 1;
-        player.weaponLevels.push(startLevel);
-        player.ownedWeapons.set(w.weapon.id, startLevel);
+    player.name = auth?.name || options.name || `Pilot ${client.sessionId.substring(0, 4)}`;
+    
+    // Choose faction (balanced or random)
+    let humanCount = 0;
+    let martianCount = 0;
+    this.state.players.forEach(p => {
+        const pShip = this.state.ships.get(p.shipId);
+        if (pShip) {
+            if (pShip.faction === 'humans') humanCount++;
+            else if (pShip.faction === 'martians') martianCount++;
+        }
+    });
+    
+    const assignedFaction = (humanCount <= martianCount) ? 'humans' : 'martians';
+    
+    // Create Ship
+    const ship = new Ship();
+    ship.id = `ship_${client.sessionId}`;
+    ship.ownerId = client.sessionId;
+    ship.faction = assignedFaction;
+    ship.shipClass = shipSpecObj.id;
+    ship.x = (assignedFaction === 'humans') ? -15000 : 15000;
+    ship.y = (Math.random() - 0.5) * 2000;
+    ship.angle = (assignedFaction === 'humans') ? Math.PI / 2 : -Math.PI / 2;
+    ship.vx = 0;
+    ship.vy = 0;
+    ship.hull = shipSpecObj.stats.hull;
+    ship.armor = shipSpecObj.stats.armor;
+    ship.weaponRadius = shipSpecObj.stats.weaponRadius;
+    
+    if (shipSpecObj.weapons) {
+      shipSpecObj.weapons.forEach((w, i) => {
+        ship.weaponSlots.push(true);
+        ship.equippedWeapons.push(w.weapon.id);
+        ship.weaponLevels.push(w.weapon.level || 1);
+        player.ownedWeapons.set(w.weapon.id, w.weapon.level || 1);
       });
     }
 
+    player.shipId = ship.id;
+
+    this.state.ships.set(ship.id, ship);
     this.state.players.set(client.sessionId, player);
+    
     this.updateMetadata();
   }
 
   async onLeave(client: Client, code: number) {
-    console.log(client.sessionId, "left!", code);
-    
-    // Clear inputs immediately so the ship doesn't fly off forever or keep firing
+    console.log(client.sessionId, "left!");
     const player = this.state.players.get(client.sessionId);
     if (player) {
-      player.connected = false;
-      player.input.w = false;
-      player.input.a = false;
-      player.input.s = false;
       player.input.d = false;
-      player.targetId = ""; // Optional: stop firing
+      const ship = this.state.ships.get(player.shipId);
+      if (ship) ship.targetId = ""; // Optional: stop firing
     }
     
     try {
@@ -1108,7 +1136,11 @@ export class MyRoom extends Room {
       
     } catch (e) {
       console.log(`Player ${client.sessionId} cleanup after 10s grace period.`);
-      this.state.players.delete(client.sessionId);
+      const p = this.state.players.get(client.sessionId);
+      if (p) {
+        this.state.ships.delete(p.shipId);
+        this.state.players.delete(client.sessionId);
+      }
       this.updateMetadata();
     }
   }
@@ -1122,8 +1154,8 @@ export class MyRoom extends Room {
 
   updateMetadata() {
     const counts: any = {};
-    this.state.players.forEach(p => {
-      counts[p.faction] = (counts[p.faction] || 0) + 1;
+    this.state.ships.forEach(s => {
+      counts[s.faction] = (counts[s.faction] || 0) + 1;
     });
     this.setMetadata({ factionCounts: counts });
   }
