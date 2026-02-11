@@ -33,7 +33,9 @@ export class Station extends Entity {
     p.rect(0, 0, this.width, this.height);
     
     // Corner Turrets
-    p.fill(factionColor + '33');
+    const fillCol = p.color(factionColor);
+    fillCol.setAlpha(51); // 0x33
+    p.fill(fillCol);
     p.strokeWeight(1 / (zoom || 0.1));
     const tx = this.width / 2;
     const ty = this.height / 2;

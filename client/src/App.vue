@@ -1,15 +1,50 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, provide } from "vue";
 import Lobby from "./components/Lobby.vue";
 import GameView from "./components/GameView.vue";
 
-const currentView = ref(localStorage.getItem('game_view') || 'lobby');
-const activeRoomId = ref(localStorage.getItem('active_room_id'));
-const selectedFaction = ref(localStorage.getItem('selected_faction'));
-const selectedShip = ref(localStorage.getItem('selected_ship'));
+const currentView = ref('lobby');
+const activeRoomId = ref(null);
+const selectedFaction = ref(null);
+const selectedShip = ref(null);
 const authToken = ref(localStorage.getItem('auth_token'));
 const allFactions = ref([]);
 const leaveTriggered = ref(false);
+
+// Clear game session items on boot to ensure we start in lobby
+localStorage.removeItem('game_view');
+localStorage.removeItem('active_room_id');
+localStorage.removeItem('selected_faction');
+localStorage.removeItem('selected_ship');
+
+provide('factions', allFactions);
+
+const fetchFactions = async () => {
+  try {
+    const baseUrl = import.meta.env.VITE_SERVER_URL || '';
+    const response = await fetch(`${baseUrl}/api/factions`.replace(/^\/\//, '/'));
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    allFactions.value = data;
+  } catch (e) {
+    console.error("Error fetching factions:", e);
+  }
+};
+
+onMounted(async () => {
+  await fetchFactions();
+  
+  // Cleanup on reload
+  window.addEventListener('beforeunload', () => {
+    if (activeRoomId.value) {
+      localStorage.removeItem(`session_${activeRoomId.value}`);
+    }
+    localStorage.removeItem('game_view');
+    localStorage.removeItem('active_room_id');
+    localStorage.removeItem('selected_faction');
+    localStorage.removeItem('selected_ship');
+  });
+});
 
 const handleJoin = (data) => {
   activeRoomId.value = data.roomId;
@@ -25,10 +60,6 @@ const handleJoin = (data) => {
   
   console.log("Navigating to game for room:", data.roomId, "as", data.faction);
   leaveTriggered.value = false;
-};
-
-const handleFactionsLoaded = (factions) => {
-  allFactions.value = factions;
 };
 
 const backToLobby = () => {
@@ -54,7 +85,6 @@ const handleFinalLeave = () => {
       <Lobby 
         v-if="currentView === 'lobby'" 
         @join="handleJoin" 
-        @factions-loaded="handleFactionsLoaded"
       />
       <div v-else-if="currentView === 'game'" class="game-view">
         <div class="game-header">
@@ -66,7 +96,6 @@ const handleFinalLeave = () => {
             :roomId="activeRoomId" 
             :faction="selectedFaction" 
             :ship="selectedShip"
-            :factions="allFactions"
             :token="authToken"
             :isLeaving="leaveTriggered"
             @leave="handleFinalLeave"

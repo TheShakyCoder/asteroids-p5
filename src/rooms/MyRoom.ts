@@ -47,17 +47,16 @@ export class MyRoom extends Room {
       faction.spawnY = f.spawn.y;
       this.state.factions.set(faction.id, faction);
 
-      // 2. Create the associated base station
-      const station = new Station();
-      station.id = `base_${f.id}`;
-      station.faction = f.id;
-      station.x = f.spawn.x;
-      station.y = f.spawn.y;
-      station.width = 500;
-      station.height = 70;
-      station.angle = 0; // Stationary for now
-      station.droneNextWaveTime = Date.now(); // Start first wave immediately
-      this.state.stations.set(station.id, station);
+      // 2. Create the associated base station if configured
+      if (f.hasStation) {
+        const station = new Station();
+        station.id = `station_${f.id}`;
+        station.faction = f.id;
+        station.x = f.spawn.x;
+        station.y = f.spawn.y;
+        station.droneNextWaveTime = Date.now(); // Start first wave immediately
+        this.state.stations.set(station.id, station);
+      }
     });
 
     // Procedural Asteroid Generation
@@ -186,9 +185,12 @@ export class MyRoom extends Room {
       const ship = this.state.ships.get(player.shipId);
       if (!ship || ship.isDead || ship.isDocked || ship.isDocking) return;
 
-      const stationId = `base_${ship.faction}`;
+      const stationId = `station_${ship.faction}`;
       const station = this.state.stations.get(stationId);
-      if (!station) return;
+      if (!station) {
+        console.log(`Ship ${ship.id} tried to dock, but faction ${ship.faction} has no station.`);
+        return;
+      }
 
       const dist = Math.sqrt((station.x - ship.x) ** 2 + (station.y - ship.y) ** 2);
       if (dist <= 1500) {
@@ -276,7 +278,6 @@ export class MyRoom extends Room {
       ship.shipClass = shipSpec.id;
       ship.hull = shipSpec.stats.hull;
       ship.armor = shipSpec.stats.armor;
-      ship.weaponRadius = shipSpec.stats.weaponRadius;
 
       // Reset weapons to default for the new ship (but use owned levels if available)
       ship.equippedWeapons = [];
@@ -356,7 +357,7 @@ export class MyRoom extends Room {
 
       // --- DOCKING LOGIC ---
       if (ship.isDocking) {
-        const stationId = `base_${ship.faction}`;
+        const stationId = `station_${ship.faction}`;
         const station = this.state.stations.get(stationId);
         if (station) {
           const dist = Math.sqrt((station.x - ship.x) ** 2 + (station.y - ship.y) ** 2);
@@ -788,11 +789,9 @@ export class MyRoom extends Room {
           const reloadMs = reload * 1000;
 
           if (now - lastFire >= reloadMs) {
-            const turretWorldX = station.x + (tw.x * Math.cos(station.angle) - tw.y * Math.sin(station.angle));
-            const turretWorldY = station.y + (tw.x * Math.sin(station.angle) + tw.y * Math.cos(station.angle));
-            const distToTarget = Math.sqrt((currentTarget.x - turretWorldX) ** 2 + (currentTarget.y - turretWorldY) ** 2);
-            const dx = currentTarget.x - turretWorldX;
-            const dy = currentTarget.y - turretWorldY;
+            const distToTarget = Math.sqrt((currentTarget.x - station.x) ** 2 + (currentTarget.y - station.y) ** 2);
+            const dx = currentTarget.x - station.x;
+            const dy = currentTarget.y - station.y;
             const angle = Math.atan2(dy, dx) + Math.PI / 2;
 
             // FIRE!
@@ -842,8 +841,8 @@ export class MyRoom extends Room {
               projectile.faction = station.faction;
               projectile.ownerId = station.id;
               projectile.targetId = currentTarget.id;
-              projectile.x = turretWorldX;
-              projectile.y = turretWorldY;
+              projectile.x = station.x;
+              projectile.y = station.y;
               projectile.angle = angle;
 
               projectile.speed = Array.isArray(weaponDef.projectileSpeed) ? weaponDef.projectileSpeed[0] : (weaponDef.projectileSpeed as any || 4);
@@ -1017,7 +1016,7 @@ export class MyRoom extends Room {
     if (!ship) return;
 
     const shipSpec = ships.find(s => s.id === ship.shipClass) || ships[0];
-    const stationId = `base_${ship.faction}`;
+    const stationId = `station_${ship.faction}`;
     const station = this.state.stations.get(stationId);
 
     if (station) {
@@ -1093,14 +1092,17 @@ export class MyRoom extends Room {
     ship.ownerId = client.sessionId;
     ship.faction = assignedFaction;
     ship.shipClass = shipSpecObj.id;
-    ship.x = (assignedFaction === 'humans') ? -15000 : 15000;
-    ship.y = (Math.random() - 0.5) * 2000;
+
+    const station = this.state.stations.get(`station_${assignedFaction}`);
+    const spawnAngle = Math.random() * Math.PI * 2;
+    ship.x = (station?.x || 0) + Math.cos(spawnAngle) * 1000;
+    ship.y = (station?.y || 0) + Math.sin(spawnAngle) * 1000;
+
     ship.angle = (assignedFaction === 'humans') ? Math.PI / 2 : -Math.PI / 2;
     ship.vx = 0;
     ship.vy = 0;
     ship.hull = shipSpecObj.stats.hull;
     ship.armor = shipSpecObj.stats.armor;
-    ship.weaponRadius = shipSpecObj.stats.weaponRadius;
     
     if (shipSpecObj.weapons) {
       shipSpecObj.weapons.forEach((w, i) => {

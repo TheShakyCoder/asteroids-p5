@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, inject, computed } from 'vue';
 import { Client } from '@colyseus/sdk';
 
 const rooms = ref([]);
-const factions = ref([]);
+const factions = inject('factions', ref([]));
 const selectedFaction = ref(null);
 const ships = ref([]);
 const selectedShip = ref(null);
@@ -123,23 +123,6 @@ const fetchShips = async () => {
   }
 };
 
-const fetchFactions = async () => {
-  try {
-    const baseUrl = import.meta.env.VITE_SERVER_URL || '';
-    const response = await fetch(`${baseUrl}/api/factions`.replace(/^\/\//, '/'));
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
-    factions.value = data;
-    emit('factions-loaded', data);
-    if (data.length > 0) {
-      selectedFaction.value = data[0].id;
-    }
-  } catch (e) {
-    console.error("Error fetching factions:", e);
-    error.value = "Failed to load faction data.";
-  }
-};
-
 const fetchRooms = async () => {
   try {
     const baseUrl = import.meta.env.VITE_SERVER_URL || '';
@@ -154,6 +137,10 @@ const fetchRooms = async () => {
     loading.value = false;
   }
 };
+
+const pickableFactions = computed(() => {
+  return factions.value.filter(f => f.pickable);
+});
 
 onMounted(async () => {
   isConnecting.value = true;
@@ -179,10 +166,14 @@ onMounted(async () => {
     }
     await Promise.all([
       fetchRooms(),
-      fetchFactions(),
       fetchShips()
     ]);
     refreshInterval = setInterval(fetchRooms, 3000);
+
+    // Initial faction selection if not already set
+    if (factions.value.length > 0 && !selectedFaction.value) {
+      selectedFaction.value = factions.value[0].id;
+    }
   } else {
     isConnecting.value = false;
     loading.value = false;
@@ -205,7 +196,7 @@ const joinRoom = (roomId) => {
   });
 };
 
-const emit = defineEmits(['join', 'factions-loaded']);
+const emit = defineEmits(['join']);
 </script>
 
 <template>
@@ -264,7 +255,7 @@ const emit = defineEmits(['join', 'factions-loaded']);
           <h3>Choose your Allegiance</h3>
           <div class="faction-grid">
             <div 
-              v-for="faction in factions" 
+              v-for="faction in pickableFactions" 
               :key="faction.id" 
               class="faction-card"
               :class="{ active: selectedFaction === faction.id }"

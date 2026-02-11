@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed, reactive, watch } from 'vue';
+import { onMounted, onUnmounted, ref, computed, reactive, watch, inject } from 'vue';
 import { Client } from '@colyseus/sdk';
 import p5 from 'p5';
 import { Ship } from '../entities/Ship.js';
@@ -14,10 +14,11 @@ const props = defineProps({
   roomId: String,
   faction: String,
   ship: String,
-  factions: Array,
   token: String,
   isLeaving: Boolean
 });
+
+const factions = inject('factions', ref([]));
 
 const emit = defineEmits(['leave']);
 
@@ -201,7 +202,7 @@ const fetchVersion = async () => {
 
 
 const getFactionColor = (factionId) => {
-  const faction = (props.factions || []).find(f => f.id === factionId);
+  const faction = (factions.value || []).find(f => f.id === factionId);
   return faction ? faction.color : '#ffffff';
 };
 
@@ -486,7 +487,7 @@ const sketch = (p) => {
     const shipSpec = shipConfigs.value.find(s => s.id === myShip.shipClass);
 
     // DOCKING PROMPT
-    const homeStationId = `base_${myShip.faction}`;
+    const homeStationId = `station_${myShip.faction}`;
     const homeStation = room.state.stations.get(homeStationId);
     if (homeStation) {
       const distToHome = Math.sqrt((homeStation.x - myShip.x) ** 2 + (homeStation.y - myShip.y) ** 2);
@@ -675,7 +676,7 @@ const sketch = (p) => {
       const dy = station.y - myShip.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const angle = Math.atan2(dy, dx);
-      const isBase = station.id.startsWith('base_');
+      const isBase = station.id.startsWith('station_');
       const isHome = station.faction === myShip.faction;
       const sColor = getFactionColor(station.faction);
 
@@ -774,7 +775,7 @@ const sketch = (p) => {
 
 watch(() => props.isLeaving, (newVal) => {
   if (newVal && leavingCountdown.value === 0) {
-    leavingCountdown.value = 10;
+    leavingCountdown.value = 5;
     leavingInterval = setInterval(() => {
       leavingCountdown.value--;
       if (leavingCountdown.value <= 0) {

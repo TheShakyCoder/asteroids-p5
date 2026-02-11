@@ -14,8 +14,8 @@ export class MyRoomState extends Schema {
   @type({ map: Projectile }) projectiles = new MapSchema<Projectile>();
   @type({ map: Asteroid }) asteroidObjects = new MapSchema<Asteroid>();
   @type({ map: Faction }) factions = new MapSchema<Faction>();
-  @type("number") width: number = 20000;
-  @type("number") height: number = 20000;
+  @type("number") width: number = 50000;
+  @type("number") height: number = 50000;
   @type("number") asteroids: number = 100;
   @type("number") serverTime: number = 0;
   @type("string") winner: string = "";

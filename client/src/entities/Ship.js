@@ -96,7 +96,9 @@ export class Ship extends Entity {
       if (isActive) {
         // Visualize Firing Arc
         p.noFill();
-        p.stroke(`${factionColor}66`);
+        const arcCol = p.color(factionColor);
+        arcCol.setAlpha(102); // 0x66
+        p.stroke(arcCol);
         p.strokeWeight(1 / (zoom || 0.1));
         
         const halfFovRad = p.radians(fov / 2);
