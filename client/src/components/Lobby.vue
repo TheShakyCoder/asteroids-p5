@@ -200,7 +200,7 @@ onUnmounted(() => {
 
 const joinRoom = (roomId) => {
   const targetId = String(roomId);
-  console.log("Joining sector:", targetId);
+  // console.log("Joining sector:", targetId);
   emit('join', { 
     roomId: targetId, 
     faction: selectedFaction.value, 

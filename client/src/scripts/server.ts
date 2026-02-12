@@ -25,7 +25,7 @@ export const connect = async (targetRoomId: string, faction: string, ship: strin
   try {
     const { protocol, host } = await getUrl();
 
-    console.log(`Neural Link: connecting to ${protocol}://${host}`);
+    // console.log(`Neural Link: connecting to ${protocol}://${host}`);
     let client = new Client(`${protocol}://${host}`);
 
     // Give the server a tiny moment to finalize room creation/setup
@@ -35,10 +35,10 @@ export const connect = async (targetRoomId: string, faction: string, ship: strin
     const lastSessionId = localStorage.getItem(`session_${targetRoomId}`);
 
     if (lastSessionId) {
-      console.log(`Attempting to reconnect to sector ${targetRoomId} with session ${lastSessionId}...`);
+      // console.log(`Attempting to reconnect to sector ${targetRoomId} with session ${lastSessionId}...`);
       try {
         room = await client.reconnect(targetRoomId, lastSessionId);
-        console.log("Reconnected successfully:", room.sessionId);
+        // console.log("Reconnected successfully:", room.sessionId);
       } catch (e) {
         console.warn("Reconnection failed, starting fresh deployment...", e);
         room = await client.joinById(targetRoomId, {
@@ -48,7 +48,7 @@ export const connect = async (targetRoomId: string, faction: string, ship: strin
         });
       }
     } else {
-      console.log(`Connecting to sector ${targetRoomId}...`);
+      // console.log(`Connecting to sector ${targetRoomId}...`);
       room = await client.joinById(targetRoomId, {
         faction: faction,
         ship: ship,
@@ -56,7 +56,7 @@ export const connect = async (targetRoomId: string, faction: string, ship: strin
       });
     }
     localStorage.setItem(`session_${targetRoomId}`, room.sessionId);
-    console.log("Joined successfully:", room.sessionId);
+    // console.log("Joined successfully:", room.sessionId);
     return room;
   } catch (e) {
     return null;

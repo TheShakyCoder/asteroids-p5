@@ -58,7 +58,7 @@ const server = defineServer({
 
         app.get("/api/rooms", async (req, res) => {
             const rooms = await matchMaker.query({});
-            console.log("API: Queried rooms:", rooms.length);
+            // console.log("API: Queried rooms:", rooms.length);
             res.json(rooms);
         });
 
@@ -213,15 +213,15 @@ const server = defineServer({
             
             if (rooms.length === 0) {
                 const randomName = `Sector ${generateRoomName()}`;
-                console.log(`Bootstrap: Initializing ${randomName}...`);
+                // console.log(`Bootstrap: Initializing ${randomName}...`);
                 try {
                     await matchMaker.create("my_room", { name: randomName });
-                    console.log(`Bootstrap: ${randomName} created.`);
+                    // console.log(`Bootstrap: ${randomName} created.`);
                 } catch (e) {
                     console.error("Bootstrap: Error creating room:", e);
                 }
             } else {
-                console.log("Bootstrap: Sectors already active.");
+                // console.log("Bootstrap: Sectors already active.");
             }
         }, 1000);
     }

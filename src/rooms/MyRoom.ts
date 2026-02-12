@@ -23,12 +23,12 @@ export class MyRoom extends Room {
       /**
        * Handle "yourMessageType" message.
        */
-      console.log(client.sessionId, "sent a message:", message);
+      // console.log(client.sessionId, "sent a message:", message);
     }
   }
 
   onCreate(options: any) {
-    console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
+    // console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
     this.setMetadata({ 
       name: options.name || `Sector ${generateRoomName()}`,
       factionCounts: {} 
@@ -67,7 +67,7 @@ export class MyRoom extends Room {
 
     // Procedural Asteroid Generation
     const asteroidCount = this.state.asteroids || 10;
-    console.log(`Generating ${asteroidCount} asteroids...`);
+    // console.log(`Generating ${asteroidCount} asteroids...`);
     
     for (let i = 0; i < asteroidCount; i++) {
         const asteroid = new Asteroid();
@@ -142,7 +142,7 @@ export class MyRoom extends Room {
       });
 
       ship.targetId = nearest ? (nearest as any).id : "";
-      console.log(`Player ${client.sessionId} targeting enemy ${ship.targetId || 'NOTHING'}`);
+      // console.log(`Player ${client.sessionId} targeting enemy ${ship.targetId || 'NOTHING'}`);
     });
 
     this.onMessage("target-object", (client) => {
@@ -184,7 +184,7 @@ export class MyRoom extends Room {
       });
 
       ship.targetId = nearest ? (nearest as any).id : "";
-      console.log(`Player ${client.sessionId} targeting object ${ship.targetId || 'NOTHING'}`);
+      // console.log(`Player ${client.sessionId} targeting object ${ship.targetId || 'NOTHING'}`);
     });
 
     this.onMessage("dock", (client) => {
@@ -197,7 +197,7 @@ export class MyRoom extends Room {
       const stationId = `station_${ship.faction}`;
       const station = this.state.stations.get(stationId);
       if (!station) {
-        console.log(`Ship ${ship.id} tried to dock, but faction ${ship.faction} has no station.`);
+        // console.log(`Ship ${ship.id} tried to dock, but faction ${ship.faction} has no station.`);
         return;
       }
 
@@ -205,7 +205,7 @@ export class MyRoom extends Room {
       if (dist <= 1500) {
         ship.isDocking = true;
         ship.dockingStartTime = Date.now();
-        console.log(`Player ${player.id} STARTING DOCKING`);
+        // console.log(`Player ${player.id} STARTING DOCKING`);
       }
     });
 
@@ -215,7 +215,7 @@ export class MyRoom extends Room {
          const ship = this.state.ships.get(player.shipId);
          if (ship && ship.isDocked) {
             ship.isDocked = false;
-            console.log(`Player ${player.id} UNDOCKED`);
+            // console.log(`Player ${player.id} UNDOCKED`);
          }
       }
     });
@@ -241,9 +241,9 @@ export class MyRoom extends Room {
         
         if (!isOwned) {
           player.ownedWeapons.set(data.weaponId, 1);
-          console.log(`Player ${player.id} BOUGHT ${data.weaponId} for slot ${data.slotIndex}`);
+          // console.log(`Player ${player.id} BOUGHT ${data.weaponId} for slot ${data.slotIndex}`);
         } else {
-          console.log(`Player ${player.id} EQUIPPED owned ${data.weaponId} (Level ${level}) in slot ${data.slotIndex}`);
+          // console.log(`Player ${player.id} EQUIPPED owned ${data.weaponId} (Level ${level}) in slot ${data.slotIndex}`);
         }
       }
     });
@@ -270,7 +270,7 @@ export class MyRoom extends Room {
         const newLevel = currentLevel + 1;
         ship.weaponLevels[data.slotIndex] = newLevel;
         player.ownedWeapons.set(wId, newLevel);
-        console.log(`Player ${player.id} UPGRADED weapon in slot ${data.slotIndex} to level ${newLevel}`);
+        // console.log(`Player ${player.id} UPGRADED weapon in slot ${data.slotIndex} to level ${newLevel}`);
       }
     });
 
@@ -309,7 +309,7 @@ export class MyRoom extends Room {
         });
       }
       
-      console.log(`Player ${player.id} CHANGED SHIP TO ${data.shipId}`);
+      // console.log(`Player ${player.id} CHANGED SHIP TO ${data.shipId}`);
     });
 
     this.onMessage("input", (client, input) => {
@@ -372,7 +372,7 @@ export class MyRoom extends Room {
           const dist = Math.sqrt((station.x - ship.x) ** 2 + (station.y - ship.y) ** 2);
           if (dist > 1500) {
             ship.isDocking = false;
-            console.log(`Ship ${ship.id} DOCKING CANCELLED (Too far)`);
+            // console.log(`Ship ${ship.id} DOCKING CANCELLED (Too far)`);
           } else if (Date.now() - ship.dockingStartTime >= 5000) {
             ship.isDocking = false;
             ship.isDocked = true;
@@ -380,13 +380,13 @@ export class MyRoom extends Room {
             ship.vy = 0;
             ship.hull = ships.find(s => s.id === ship.shipClass)?.stats.hull || ship.hull;
             ship.armor = ships.find(s => s.id === ship.shipClass)?.stats.armor || ship.armor;
-            console.log(`Ship ${ship.id} DOCKING COMPLETE`);
+            // console.log(`Ship ${ship.id} DOCKING COMPLETE`);
 
             // Clear any projectile locks on this ship
             this.state.projectiles.forEach(proj => {
               if (proj.targetId === ship.id) {
                 proj.targetId = "";
-                console.log(`Projectile ${proj.id} lost lock on docked ship ${ship.id}`);
+                // console.log(`Projectile ${proj.id} lost lock on docked ship ${ship.id}`);
               }
             });
           }
@@ -401,7 +401,7 @@ export class MyRoom extends Room {
         // If they try to move, undock them
         if (player && (player.input.w || player.input.a || player.input.s || player.input.d)) {
           ship.isDocked = false;
-          console.log(`Ship ${ship.id} UNDOCKED (Input detected)`);
+          // console.log(`Ship ${ship.id} UNDOCKED (Input detected)`);
         }
         return;
       }
@@ -554,7 +554,7 @@ export class MyRoom extends Room {
                       return;
                     }
 
-                    console.log(`Ship ${ship.id} HIT ${target.id}`);
+                    // console.log(`Ship ${ship.id} HIT ${target.id}`);
                     // 2. APPLY DAMAGE (randomize between min and max)
                     const baseDmg = minDmg + Math.random() * (maxDmg - minDmg);
                     const hitResult = calculateHit({
@@ -568,18 +568,18 @@ export class MyRoom extends Room {
                       if (this.state.ships.has(target.id)) {
                         this.handleShipDeath(target as Ship);
                         player.tylium += 1500;
-                        console.log(`Player ${player.id} awarded 1500 Tylium for destroying Ship ${target.id}`);
+                        // console.log(`Player ${player.id} awarded 1500 Tylium for destroying Ship ${target.id}`);
                       } else if (this.state.projectiles.has(target.id)) {
                         this.state.projectiles.delete(target.id);
                         player.tylium += 100;
-                        console.log(`Player ${player.id} awarded 100 Tylium for destroying Projectile ${target.id}`);
+                        // console.log(`Player ${player.id} awarded 100 Tylium for destroying Projectile ${target.id}`);
                       } else if (this.state.stations.has(target.id)) {
                         // STATION DESTROYED! 
                         const stationTarget = target as Station;
-                        console.log(`STATION ${target.id} DESTROYED!`);
+                        // console.log(`STATION ${target.id} DESTROYED!`);
                         this.state.winner = (stationTarget.faction === 'humans') ? 'martians' : 'humans';
                         player.tylium += 10000;
-                        console.log(`Player ${player.id} awarded 10000 Tylium for destroying Station ${target.id}`);
+                        // console.log(`Player ${player.id} awarded 10000 Tylium for destroying Station ${target.id}`);
                         stationTarget.hull = stationTarget.maxHull;
                       }
                     }
@@ -612,7 +612,7 @@ export class MyRoom extends Room {
                     projectile.lifespan = Math.max(5000, ticksToTarget * 50);
 
                     this.state.projectiles.set(projectile.id, projectile);
-                    console.log(`Ship ${ship.id} launched missile at ${target.id}`);
+                    // console.log(`Ship ${ship.id} launched missile at ${target.id}`);
                   }
                 }
               }
@@ -652,7 +652,7 @@ export class MyRoom extends Room {
           // Lost lock if target docked
           if (target instanceof Ship && target.isDocked) {
             proj.targetId = "";
-            console.log(`Projectile ${proj.id} lost lock - target docked`);
+            // console.log(`Projectile ${proj.id} lost lock - target docked`);
           }
         } else {
           // Target no longer exists
@@ -715,12 +715,12 @@ export class MyRoom extends Room {
                     const attacker = this.state.players.get(proj.ownerId);
                     if (attacker) {
                         attacker.tylium += 100;
-                        console.log(`Player ${attacker.id} awarded 100 Tylium for intercepting Projectile ${potentialTarget.id}`);
+                        // console.log(`Player ${attacker.id} awarded 100 Tylium for intercepting Projectile ${potentialTarget.id}`);
                     }
                     this.state.projectiles.delete(potentialTarget.id);
                     this.state.projectiles.delete(proj.id);
                     hitDetected = true;
-                    console.log(`Projectile ${proj.id} intercepted ${potentialTarget.id}`);
+                    // console.log(`Projectile ${proj.id} intercepted ${potentialTarget.id}`);
                 }
             }
         }
@@ -927,7 +927,7 @@ export class MyRoom extends Room {
           drone.lifespan = 3600000; // 1 hour (plenty of time to travel)
 
           this.state.projectiles.set(drone.id, drone);
-          console.log(`STATION ${station.id} launched DRONE at ${drone.targetId}`);
+          // console.log(`STATION ${station.id} launched DRONE at ${drone.targetId}`);
         }
       }
     });
@@ -941,7 +941,7 @@ export class MyRoom extends Room {
     });
 
     target.hull -= hitResult.finalHullDamage;
-    console.log(`${proj.type} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)}`);
+    // console.log(`${proj.type} hit ${target.id} for ${hitResult.finalHullDamage.toFixed(1)}`);
 
     if (target.hull <= 0) {
       if (this.state.ships.has(target.id)) {
@@ -953,12 +953,12 @@ export class MyRoom extends Room {
             const attackerPlayer = this.state.players.get(attackerShip.ownerId);
             if (attackerPlayer) {
               attackerPlayer.tylium += 1500;
-              console.log(`Player ${attackerPlayer.id} awarded 1500 Tylium for destroying Ship ${target.id} with ${proj.type}`);
+              // console.log(`Player ${attackerPlayer.id} awarded 1500 Tylium for destroying Ship ${target.id} with ${proj.type}`);
             }
         }
       } else if (this.state.stations.has(target.id)) {
         const station = target as Station;
-        console.log(`STATION ${target.id} DESTROYED by ${proj.ownerId}!`);
+        // console.log(`STATION ${target.id} DESTROYED by ${proj.ownerId}!`);
         this.triggerGameOver((station.faction === 'humans') ? 'martians' : 'humans');
         
         const attackerShip = this.state.ships.get(proj.ownerId);
@@ -966,7 +966,7 @@ export class MyRoom extends Room {
             const attackerPlayer = this.state.players.get(attackerShip.ownerId);
             if (attackerPlayer) {
               attackerPlayer.tylium += 10000;
-              console.log(`Player ${attackerPlayer.id} awarded 10000 Tylium for destroying Station ${target.id}`);
+              // console.log(`Player ${attackerPlayer.id} awarded 10000 Tylium for destroying Station ${target.id}`);
             }
         }
       }
@@ -985,24 +985,24 @@ export class MyRoom extends Room {
     this.state.gameStatus = "gameover";
     this.state.gameOverTime = this.state.serverTime + 60000; // 60s from now
 
-    console.log(`GAME OVER! Winner: ${winner}. Room will be disposed in 60s.`);
+    // console.log(`GAME OVER! Winner: ${winner}. Room will be disposed in 60s.`);
 
     // Immediately create a new Sector 1
     matchMaker.create("my_room", { name: "Sector 1" }).then(room => {
-        console.log("Replacement Sector 1 created:", room.roomId);
+        // console.log("Replacement Sector 1 created:", room.roomId);
     }).catch(e => {
         console.error("Failed to create replacement Sector 1:", e);
     });
 
     this.clock.setTimeout(() => {
-      console.log("60 seconds elapsed. Disconnecting all clients and disposing room.");
+      // console.log("60 seconds elapsed. Disconnecting all clients and disposing room.");
       this.disconnect();
     }, 60000);
   }
 
   handleShipDeath(ship: Ship) {
     if (ship.isDead) return;
-    console.log(`Ship ${ship.id} destroyed!`);
+    // console.log(`Ship ${ship.id} destroyed!`);
     ship.isDead = true;
     ship.hull = 0;
     ship.vx = 0;
@@ -1020,7 +1020,7 @@ export class MyRoom extends Room {
   }
 
   respawnPlayer(player: Player) {
-    console.log(`Respawning player ${player.id}...`);
+    // console.log(`Respawning player ${player.id}...`);
     const ship = this.state.ships.get(player.shipId);
     if (!ship) return;
 
@@ -1077,7 +1077,7 @@ export class MyRoom extends Room {
     const factionId = options.faction || "humans";
     const factionObj = this.state.factions.get(factionId);
     const shipSpecObj = ships.find(s => s.id === options.ship) || ships[0];
-    console.log(client.sessionId, "joined!");
+    // console.log(client.sessionId, "joined!");
     const player = new Player();
     player.id = client.sessionId;
     player.name = auth?.name || options.name || `Pilot ${client.sessionId.substring(0, 4)}`;
@@ -1135,7 +1135,7 @@ export class MyRoom extends Room {
   }
 
   async onLeave(client: Client, code: number) {
-    console.log(client.sessionId, "left!");
+    // console.log(client.sessionId, "left!");
     const player = this.state.players.get(client.sessionId);
     if (player) {
       player.input.d = false;
@@ -1146,11 +1146,11 @@ export class MyRoom extends Room {
     try {
       // Leave the ship ingame for 10 seconds to allow for reconnection or grace period
       await this.allowReconnection(client, 10);
-      console.log(`Player ${client.sessionId} reconnected!`);
+      // console.log(`Player ${client.sessionId} reconnected!`);
       if (player) player.connected = true;
       
     } catch (e) {
-      console.log(`Player ${client.sessionId} cleanup after 10s grace period.`);
+      // console.log(`Player ${client.sessionId} cleanup after 10s grace period.`);
       const p = this.state.players.get(client.sessionId);
       if (p) {
         this.state.ships.delete(p.shipId);
@@ -1164,7 +1164,7 @@ export class MyRoom extends Room {
     /**
      * Called when the room is disposed.
      */
-    console.log("room", this.roomId, "disposing...");
+    // console.log("room", this.roomId, "disposing...");
   }
 
   updateMetadata() {

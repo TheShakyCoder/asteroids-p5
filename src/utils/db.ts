@@ -27,7 +27,7 @@ export async function initDb() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
-        console.log("Database initialized: 'users' table is ready.");
+        // console.log("Database initialized: 'users' table is ready.");
     } catch (error) {
         console.error("Error initializing database:", error);
     } finally {

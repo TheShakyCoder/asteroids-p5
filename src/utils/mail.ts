@@ -33,7 +33,7 @@ export async function sendVerificationEmail(email: string, token: string, userna
 
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log(`[MAIL] Verification email sent to ${email}: ${info.messageId}`);
+        // console.log(`[MAIL] Verification email sent to ${email}: ${info.messageId}`);
         return true;
     } catch (error) {
         console.error(`[MAIL] Error sending email to ${email}:`, error);

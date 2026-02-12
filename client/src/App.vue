@@ -54,7 +54,7 @@ const handleJoin = (data) => {
   localStorage.setItem('selected_faction', data.faction);
   localStorage.setItem('selected_ship', data.ship);
 
-  console.log("Navigating to game for room:", data.roomId, "as", data.faction);
+  // console.log("Navigating to game for room:", data.roomId, "as", data.faction);
   leaveTriggered.value = false;
 };
 

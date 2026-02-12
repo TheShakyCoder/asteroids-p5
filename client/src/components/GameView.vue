@@ -705,7 +705,7 @@ onMounted(async () => {
   }
   room ? connectionStatus.value = 'CONNECTED' : connectionStatus.value = 'OFFLINE';
   room?.onLeave((code) => {
-    console.log("Left sector with code:", code);
+    // console.log("Left sector with code:", code);
     emit('leave');
   });
   room?.onStateChange((state) => {
