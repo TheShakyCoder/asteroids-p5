@@ -31,7 +31,7 @@ export class Ship extends Entity {
     this.weaponLastFire = data.weaponLastFire || {};
   }
 
-  draw(p, zoom, factionColor, shipConfigs, allWeapons, roomState, camAngle = 0) {
+  draw(p, factionColor, shipConfigs, allWeapons, roomState, camAngle = 0) {
     if (this.isDead || this.isDocked) return;
 
     p.push();
@@ -42,19 +42,19 @@ export class Ship extends Entity {
     p.rotate(-camAngle); // Keep text upright on screen
     p.noStroke();
     p.fill(255, 255, 255, 180);
-    p.textSize(12 / (zoom || 0.1));
+    p.textSize(12);
     p.textAlign(p.CENTER, p.BOTTOM);
-    p.text(this.name || 'Unknown Pilot', 0, -40 / (zoom || 0.1));
+    p.text(this.name || 'Unknown Pilot', 0, -40);
     p.pop();
 
     p.rotate(this.angle || 0);
 
     p.stroke(factionColor);
-    p.strokeWeight(2 / (zoom || 0.1));
+    p.strokeWeight(2);
     p.noFill();
 
     this.drawShape(p);
-    this.drawWeapons(p, zoom, factionColor, shipConfigs, allWeapons, roomState);
+    this.drawWeapons(p, factionColor, shipConfigs, allWeapons, roomState);
 
     p.pop();
   }
@@ -72,7 +72,7 @@ export class Ship extends Entity {
     }
   }
 
-  drawWeapons(p, zoom, factionColor, shipConfigs, allWeapons, roomState) {
+  drawWeapons(p, factionColor, shipConfigs, allWeapons, roomState) {
     const config = shipConfigs.find(s => s.id === this.shipClass);
     if (!config || !config.weapons) return;
 
@@ -87,7 +87,6 @@ export class Ship extends Entity {
       const lIdx = Math.max(0, wLevel - 1);
       const range = Array.isArray(weaponDef.maxRange) ? weaponDef.maxRange[lIdx] : (weaponDef.maxRange || 500);
       const fov = Array.isArray(weaponDef.firingArc) ? weaponDef.firingArc[lIdx] : (weaponDef.firingArc || 45);
-      const fireStroke = (weaponDef.fireStroke || 1);
       
       p.push();
       p.translate(-w.mount.left, -w.mount.front);
@@ -99,7 +98,7 @@ export class Ship extends Entity {
         const arcCol = p.color(factionColor);
         arcCol.setAlpha(102); // 0x66
         p.stroke(arcCol);
-        p.strokeWeight(1 / (zoom || 0.1));
+        p.strokeWeight(1);
         
         const halfFovRad = p.radians(fov / 2);
         const startAngle = -p.HALF_PI - halfFovRad;
@@ -110,13 +109,13 @@ export class Ship extends Entity {
         p.line(0, 0, p.cos(endAngle) * range, p.sin(endAngle) * range);
 
         // Firing Effect
-        this.drawFiringEffect(p, i, weaponDef, w, zoom, factionColor, roomState);
+        this.drawFiringEffect(p, i, weaponDef, w, factionColor, roomState);
       }
       p.pop();
     });
   }
 
-  drawFiringEffect(p, slotIdx, weaponDef, mountData, zoom, factionColor, roomState) {
+  drawFiringEffect(p, slotIdx, weaponDef, mountData, factionColor, roomState) {
     const now = roomState.serverTime;
     const lastFireData = this.weaponLastFire;
     const lastFire = (lastFireData && typeof lastFireData.get === 'function') 
@@ -149,7 +148,7 @@ export class Ship extends Entity {
 
         if (!isMissile) {
            p.stroke(factionColor);
-           p.strokeWeight((weaponDef.fireStroke || 1) / (zoom || 0.1));
+           p.strokeWeight(weaponDef.fireStroke || 1);
            const targetRelX = target.x - muzzleWorldX;
            const targetRelY = target.y - muzzleWorldY;
            p.line(0, 0, targetRelX, targetRelY);

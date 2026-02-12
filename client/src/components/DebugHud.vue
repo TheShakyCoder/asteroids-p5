@@ -4,7 +4,6 @@ const props = defineProps({
   myShip: Object,
   connectionStatus: String,
   gameVersion: String,
-  currentZoomIndex: Number,
   cameraRotationActive: Boolean,
   targetData: Object,
   hullPct: Number,
@@ -26,8 +25,6 @@ const props = defineProps({
       <dd>{{ Math.round(myShip.x || 0) }}, {{ Math.round(myShip.y || 0) }}</dd>
       <dt>Vector:</dt>
       <dd>{{ Math.round(myShip.vx || 0) }}, {{ Math.round(myShip.vy || 0) }}</dd>
-      <dt>Zoom [v]</dt>
-      <dd>{{ currentZoomIndex === 0 ? 'CLOSEUP' : 'LONG-RANGE' }}</dd>
       <dt>Camera [c]</dt>
       <dd>{{ cameraRotationActive ? 'SHIP ALIGNED' : 'WORLD ALIGNED' }}</dd>
       <dt>Target [t]:</dt>

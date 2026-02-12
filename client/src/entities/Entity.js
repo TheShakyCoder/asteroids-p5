@@ -14,7 +14,7 @@ export class Entity {
     this.faction = data.faction;
   }
 
-  draw(p, zoom, factionColor) {
+  draw(p, factionColor) {
     // To be implemented by subclasses
   }
 }

@@ -34,11 +34,10 @@ const shipsCache = new Map();
 const stationsCache = new Map();
 const projectilesCache = new Map();
 const asteroidsCache = new Map();
+const moveKeys = reactive({ w: false, a: false, s: false, d: false });
 // No global client here to avoid HMR issues
 
-const currentZoomIndex = ref(0);
-const moveKeys = reactive({ w: false, a: false, s: false, d: false });
-const zoomLevels = ref([1.0, 0.1]); // Fallback until p5 sets them
+const zoomLevels = [0.4]; // Default zoom 0.5x
 const isDead = ref(false);
 const cameraRotationActive = ref(false);
 const isDocked = ref(false);
@@ -138,7 +137,6 @@ const sendRespawn = () => {
 const onKeyDown = (e) => {
   const key = e.key.toLowerCase();
   if (moveKeys.hasOwnProperty(key)) moveKeys[key] = true;
-  if (key === 'v') currentZoomIndex.value = (currentZoomIndex.value + 1) % zoomLevels.value.length;
 
   // Weapon Toggling (Keys 1-9)
   if (key >= '1' && key <= '9' && room) {
@@ -212,16 +210,8 @@ const sketch = (p) => {
     const canvas = p.createCanvas(p.windowWidth, p.windowHeight - 80);
     canvas.parent(gameContainer.value);
     p.rectMode(p.CENTER);
-    updateZoomLevels(p);
   };
 
-  const updateZoomLevels = (p) => {
-    const h = p.height || 600;
-    zoomLevels.value = [
-      h / 500,
-      h / 5000
-    ];
-  };
 
   const handleInputs = () => {
     if (!room || props.isLeaving) return;
@@ -251,7 +241,6 @@ const sketch = (p) => {
 
     handleInputs();
 
-    const zoom = zoomLevels.value[currentZoomIndex.value] || 0.1;
     const factionColor = getFactionColor(meShip.faction);
 
     // --- APPLY CAMERA ---
@@ -263,6 +252,7 @@ const sketch = (p) => {
       p.rotate(-meShip.angle);
     }
 
+    const zoom = zoomLevels[0];
     p.scale(zoom);
 
     // Everything from here is in World Coordinates (translated so meShip is at screen center)
@@ -273,7 +263,7 @@ const sketch = (p) => {
     const gridSpacing = 1000;
     const gridColor = p.color(255, 255, 255, 20);
     p.stroke(gridColor);
-    p.strokeWeight(1 / zoom); // Keep lines thin regardless of zoom
+    p.strokeWeight(1); // Actual size 1px
 
     // Calculate visible grid range in world coordinates
     const viewHalfWidth = (p.width / 2) / zoom;
@@ -311,7 +301,7 @@ const sketch = (p) => {
         } else {
           entity.update(asteroid);
         }
-        entity.draw(p, zoom);
+        entity.draw(p);
       });
       if (asteroidsCache.size > room.state.asteroidObjects.size) {
         for (const [id] of asteroidsCache) if (!room.state.asteroidObjects.has(id)) asteroidsCache.delete(id);
@@ -328,9 +318,8 @@ const sketch = (p) => {
         entity.update(station);
       }
 
-      const sColor = getFactionColor(station.faction);
       const camAngle = cameraRotationActive.value ? -meShip.angle : 0;
-      entity.draw(p, zoom, sColor, meShip.targetId === station.id, room.state, camAngle);
+      entity.draw(p, factionColor, myShip.value.targetId === station.id, room.state, camAngle);
     });
 
     // DRAW ALL SHIPS
@@ -345,15 +334,15 @@ const sketch = (p) => {
 
       const pColor = getFactionColor(ship.faction);
       const camAngle = cameraRotationActive.value ? -meShip.angle : 0;
-      entity.draw(p, zoom, pColor, shipConfigs.value, allWeapons.value, room.state, camAngle);
+      entity.draw(p, pColor, shipConfigs.value, allWeapons.value, room.state, camAngle);
 
       if (meShip.targetId === ship.id) {
         p.push();
         p.translate(ship.x, ship.y);
         p.stroke('#ff3b30');
-        p.strokeWeight(2 / zoom);
+        p.strokeWeight(2);
         p.noFill();
-        p.rect(0, 0, 80 / zoom, 80 / zoom);
+        p.rect(0, 0, 80, 80);
         p.pop();
       }
     });
@@ -369,15 +358,15 @@ const sketch = (p) => {
       }
 
       const pColor = getFactionColor(proj.faction);
-      entity.draw(p, zoom, pColor);
+      entity.draw(p, pColor);
 
       if (myShip.value.targetId === proj.id) {
         p.push();
         p.translate(proj.x, proj.y);
         p.stroke('#ff3b30');
-        p.strokeWeight(2 / zoom);
+        p.strokeWeight(2);
         p.noFill();
-        p.ellipse(0, 0, 30 / zoom);
+        p.ellipse(0, 0, 30);
         p.pop();
       }
     });
@@ -596,8 +585,7 @@ const sketch = (p) => {
         p.push();
         p.fill(sColor);
         p.noStroke();
-        p.rectMode(p.CENTER);
-        p.rect(blipX, blipY, 8, 4); // Rectangular blip for station
+        p.ellipse(blipX, blipY, Math.max(8, station.radius * radarScale * 2)); // Circular blip for station
 
         // Label for bases
         if (isBase) {
@@ -611,7 +599,7 @@ const sketch = (p) => {
           p.noFill();
           p.stroke(sColor);
           p.strokeWeight(1);
-          p.rect(blipX, blipY, 14, 10);
+          p.ellipse(blipX, blipY, Math.max(14, station.radius * radarScale * 2 + 6));
           p.stroke(`${sColor}66`);
           p.line(0, 0, blipX, blipY);
         }
@@ -678,7 +666,6 @@ const sketch = (p) => {
 
   p.windowResized = () => {
     p.resizeCanvas(p.windowWidth, p.windowHeight - 80);
-    updateZoomLevels(p);
   };
 };
 
@@ -764,7 +751,7 @@ onUnmounted(() => {
         <div ref="gameContainer" class="p5-canvas-container"></div>
 
         <DebugHud :my-player="myPlayer" :my-ship="myShip" :connection-status="connectionStatus"
-          :game-version="gameVersion" :current-zoom-index="currentZoomIndex"
+          :game-version="gameVersion"
           :camera-rotation-active="cameraRotationActive" :target-data="targetData" :hull-pct="hullPct"
           :armor-pct="armorPct" :move-keys="moveKeys" />
 

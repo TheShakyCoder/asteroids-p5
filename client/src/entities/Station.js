@@ -3,8 +3,7 @@ import { Entity } from './Entity.js';
 export class Station extends Entity {
   constructor(data) {
     super(data);
-    this.width = 700;
-    this.height = 120;
+    this.radius = data.radius || 350;
     this.hull = data.hull;
     this.maxHull = data.maxHull;
     this.armor = data.armor;
@@ -14,6 +13,7 @@ export class Station extends Entity {
 
   update(data) {
     super.update(data);
+    this.radius = data.radius || 350;
     this.hull = data.hull;
     this.maxHull = data.maxHull;
     this.armor = data.armor;
@@ -21,30 +21,36 @@ export class Station extends Entity {
     this.targetId = data.targetId || "";
   }
 
-  draw(p, zoom, factionColor, isTargeted, roomState, camAngle = 0) {
+  draw(p, factionColor, isTargeted, roomState, camAngle = 0) {
     p.push();
     p.translate(this.x, this.y);
     p.rotate(this.angle || 0);
     
-    // Outer hull
+    // Outer hull - CIRCLE
     p.stroke(factionColor);
-    p.strokeWeight(3 / (zoom || 0.1));
+    p.strokeWeight(3);
     p.noFill();
-    p.rect(0, 0, this.width, this.height);
+    p.ellipse(0, 0, this.radius * 2, this.radius * 2);
     
-    // Corner Turrets
+    // Perimeter Turret Bases
     const fillCol = p.color(factionColor);
     fillCol.setAlpha(51); // 0x33
     p.fill(fillCol);
-    p.strokeWeight(1 / (zoom || 0.1));
-    const tx = this.width / 2;
-    const ty = this.height / 2;
-    p.rect(-tx, -ty, 20, 20); // TL
-    p.rect(tx, -ty, 20, 20);  // TR
-    p.rect(-tx, ty, 20, 20);  // BL
-    p.rect(tx, ty, 20, 20);   // BR
+    p.strokeWeight(1);
+    
+    const turretCount = 8;
+    for (let i = 0; i < turretCount; i++) {
+      const angle = (i / turretCount) * p.TWO_PI;
+      const tx = Math.cos(angle) * this.radius;
+      const ty = Math.sin(angle) * this.radius;
+      p.push();
+      p.translate(tx, ty);
+      p.rotate(angle);
+      p.rect(0, 0, 30, 30); 
+      p.pop();
+    }
 
-    this.drawHUD(p, zoom, factionColor, isTargeted);
+    this.drawHUD(p, factionColor, isTargeted);
     p.pop();
 
     if (roomState) {
@@ -52,17 +58,17 @@ export class Station extends Entity {
     }
   }
 
-  drawHUD(p, zoom, factionColor, isTargeted) {
+  drawHUD(p, factionColor, isTargeted) {
     p.push();
 
-    const barW = this.width * 0.8;
-    const barH = 18 / (zoom || 0.1);
-    const barY = -this.height / 2 - 30 / (zoom || 0.1);
+    const barW = this.radius * 2 * 0.8;
+    const barH = 18;
+    const barY = -this.radius - 40;
 
     // Background (Original Points / Max Hull) - Now Red
     p.fill('#ef4444');
     p.stroke(255, 100);
-    p.strokeWeight(1 / (zoom || 0.1));
+    p.strokeWeight(1);
     p.rect(0, barY, barW, barH);
 
     // Current Points - Green
@@ -75,31 +81,28 @@ export class Station extends Entity {
     // Text Overlay
     p.fill(255);
     p.textAlign(p.CENTER, p.CENTER);
-    p.textSize(12 / (zoom || 0.1));
+    p.textSize(12);
     p.text(`${Math.round(this.hull)} / ${Math.round(this.maxHull || 40000)}`, 0, barY);
 
     if (isTargeted) {
       p.noFill();
       p.stroke('#ff3b30');
-      p.strokeWeight(4 / (zoom || 0.1));
-      p.rect(0, 0, this.width * 1.2, this.height * 1.5);
+      p.strokeWeight(4);
+      p.ellipse(0, 0, this.radius * 2.2, this.radius * 2.2);
     }
     p.pop();
   }
 
   drawDefense(p, factionColor, roomState) {
-    const turretPos = [
-      {x: -this.width / 2, y: -this.height / 2}, {x: -this.width / 2, y: -this.height / 2}, {x: this.width / 2, y: -this.height / 2}, {x: this.width / 2, y: -this.height / 2},
-      {x: -this.width / 4, y: this.height / 2}, {x: -this.width / 4, y: this.height / 2}, {x: this.width / 4, y: this.height / 2}, {x: this.width / 4, y: this.height / 2}
-    ];
-
-    turretPos.forEach((tp, idx) => {
-      const turretId = `${this.id}_t${idx}`;
+    const turretCount = 8;
+    for (let i = 0; i < turretCount; i++) {
+      const turretId = `${this.id}_t${i}`;
       const lastFire = this.weaponLastFire ? (typeof this.weaponLastFire.get === 'function' ? this.weaponLastFire.get(turretId) : this.weaponLastFire[turretId]) : 0;
       
       if (roomState.serverTime - lastFire < 250 && lastFire > 0) {
-        const muzzleX = this.x + (tp.x * Math.cos(this.angle || 0) - tp.y * Math.sin(this.angle || 0));
-        const muzzleY = this.y + (tp.x * Math.sin(this.angle || 0) + tp.y * Math.cos(this.angle || 0));
+        const turretAngle = (i / turretCount) * p.TWO_PI + (this.angle || 0);
+        const muzzleX = this.x + Math.cos(turretAngle) * this.radius;
+        const muzzleY = this.y + Math.sin(turretAngle) * this.radius;
 
         const target = roomState.ships.get(this.targetId) || roomState.projectiles.get(this.targetId);
 
@@ -114,6 +117,6 @@ export class Station extends Entity {
           p.pop();
         }
       }
-    });
+    }
   }
 }

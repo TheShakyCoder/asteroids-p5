@@ -13,18 +13,18 @@ export class Projectile extends Entity {
     this.speed = data.speed;
   }
 
-  draw(p, zoom, factionColor) {
+  draw(p, factionColor) {
     p.push();
     p.translate(this.x, this.y);
     p.rotate(this.angle);
 
     p.stroke(factionColor);
-    p.strokeWeight(2 / (zoom || 0.1));
+    p.strokeWeight(2);
 
     if (this.type === 'missile') {
       p.noFill();
       p.beginShape(); p.vertex(0, -6); p.vertex(-2, 6); p.vertex(2, 6); p.endShape(p.CLOSE);
-      p.strokeWeight(1 / (zoom || 0.1));
+      p.strokeWeight(1);
       p.line(-2, 6, -4, 8);
       p.line(2, 6, 4, 8);
     } else if (this.type === 'drone') {

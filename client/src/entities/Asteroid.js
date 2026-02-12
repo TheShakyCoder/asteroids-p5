@@ -14,14 +14,14 @@ export class Asteroid extends Entity {
     this.radius = data.radius;
   }
 
-  draw(p, zoom) {
+  draw(p) {
     p.push();
     p.translate(this.x, this.y);
     p.rotate(this.angle);
     
     p.noFill();
     p.stroke(150);
-    p.strokeWeight(3 / (zoom || 0.1));
+    p.strokeWeight(3);
     
     // Procedural irregular shape
     p.beginShape();
