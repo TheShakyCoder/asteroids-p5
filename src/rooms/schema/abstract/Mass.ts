@@ -7,8 +7,8 @@ export class Mass extends Schema {
   @type("number") x: number;
   @type("number") y: number;
   @type("number") radius: number;
-  @type("number") hull: number;
-  @type("number") maxHull: number;
-  @type("number") armor: number;
+  @type("number") hull: number = 0;
+  @type("number") maxHull: number = 0;
+  @type("number") armor: number = 0;
   @type("string") targetId: string = "";
 }

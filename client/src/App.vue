@@ -31,7 +31,7 @@ const fetchFactions = async () => {
 
 onMounted(async () => {
   await fetchFactions();
-  
+
   // Cleanup only room-specific data on reload
   window.addEventListener('beforeunload', () => {
     if (activeRoomId.value) {
@@ -48,12 +48,12 @@ const handleJoin = (data) => {
   selectedShip.value = data.ship;
   authToken.value = data.token;
   currentView.value = 'game';
-  
+
   localStorage.setItem('game_view', 'game');
   localStorage.setItem('active_room_id', data.roomId);
   localStorage.setItem('selected_faction', data.faction);
   localStorage.setItem('selected_ship', data.ship);
-  
+
   console.log("Navigating to game for room:", data.roomId, "as", data.faction);
   leaveTriggered.value = false;
 };
@@ -78,26 +78,10 @@ const handleFinalLeave = () => {
 <template>
   <main class="app-container">
     <transition name="fade" mode="out-in">
-      <Lobby 
-        v-if="currentView === 'lobby'" 
-        @join="handleJoin" 
-      />
-      <div v-else-if="currentView === 'game'" class="game-view">
-        <div class="game-header">
-          <span>Sector: {{ activeRoomId }}</span>
-          <button @click="backToLobby" class="btn-back">Main Menu</button>
-        </div>
-        <div id="game-canvas-container">
-          <GameView 
-            :roomId="activeRoomId" 
-            :faction="selectedFaction" 
-            :ship="selectedShip"
-            :token="authToken"
-            :isLeaving="leaveTriggered"
-            @leave="handleFinalLeave"
-          />
-        </div>
-      </div>
+      <Lobby v-if="currentView === 'lobby'" @join="handleJoin" />
+
+      <GameView v-else-if="currentView === 'game'" :roomId="activeRoomId" :faction="selectedFaction"
+        :ship="selectedShip" :token="authToken" :isLeaving="leaveTriggered" @leave="handleFinalLeave" />
     </transition>
   </main>
 </template>

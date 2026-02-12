@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed, reactive, watch, inject } from 'vue';
-import { Client } from '@colyseus/sdk';
+
 import p5 from 'p5';
 import { Ship } from '../entities/Ship.js';
 import { Station } from '../entities/Station.js';
@@ -9,6 +9,7 @@ import { Asteroid } from '../entities/Asteroid.js';
 
 import DockingMenu from './DockingMenu.vue';
 import DebugHud from './DebugHud.vue';
+import { connect } from '../scripts/server.ts';
 
 const props = defineProps({
   roomId: String,
@@ -27,7 +28,6 @@ const connectionStatus = ref('CONNECTING...');
 let p5Instance = null;
 let room = null;
 const shipConfigs = ref([]);
-let client = null;
 const allWeapons = ref([]);
 // Entity instance maps for persistent client-side state
 const shipsCache = new Map();
@@ -50,10 +50,9 @@ const gameVersion = ref("0.0.0");
 const leavingCountdown = ref(0);
 let leavingInterval: any = null;
 
-const myShipId = computed(() => myPlayer.value?.shipId);
 const myShip = computed(() => {
-  if (!myShipId.value || !room || !room.state) return null;
-  return room.state.ships.get(myShipId.value);
+  if (!myPlayer.value?.shipId || !room || !room.state) return null;
+  return room.state.ships.get(myPlayer.value?.shipId);
 });
 
 const targetEntity = computed(() => {
@@ -206,96 +205,6 @@ const getFactionColor = (factionId) => {
   return faction ? faction.color : '#ffffff';
 };
 
-const connect = async () => {
-  try {
-    const wsUrlEnv = import.meta.env.VITE_WS_URL;
-    const serverUrlEnv = import.meta.env.VITE_SERVER_URL;
-
-    let protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    let host = window.location.host;
-
-    // Smart host/protocol resolution for DDEV/Tauri
-    if (wsUrlEnv) {
-      host = wsUrlEnv.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
-      if (wsUrlEnv.startsWith('wss://')) protocol = 'wss';
-      else if (wsUrlEnv.startsWith('ws://')) protocol = 'ws';
-    } else if (serverUrlEnv) {
-      host = serverUrlEnv.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
-      if (serverUrlEnv.startsWith('https')) protocol = 'wss';
-      else if (serverUrlEnv.startsWith('http')) protocol = 'ws';
-    }
-
-    console.log(`Neural Link: connecting to ${protocol}://${host}`);
-    client = new Client(`${protocol}://${host}`);
-
-    const targetRoomId = String(props.roomId);
-
-    // Give the server a tiny moment to finalize room creation/setup
-    // Critical for DDEV/Multi-container setups
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const lastSessionId = localStorage.getItem(`session_${targetRoomId}`);
-
-    if (lastSessionId) {
-      console.log(`Attempting to reconnect to sector ${targetRoomId} with session ${lastSessionId}...`);
-      try {
-        room = await client.reconnect(targetRoomId, lastSessionId);
-        console.log("Reconnected successfully:", room.sessionId);
-      } catch (e) {
-        console.warn("Reconnection failed, starting fresh deployment...", e);
-        room = await client.joinById(targetRoomId, {
-          faction: props.faction,
-          ship: props.ship,
-          token: props.token
-        });
-      }
-    } else {
-      console.log(`Connecting to sector ${targetRoomId}...`);
-      room = await client.joinById(targetRoomId, {
-        faction: props.faction,
-        ship: props.ship,
-        token: props.token
-      });
-    }
-
-    localStorage.setItem(`session_${targetRoomId}`, room.sessionId);
-
-    connectionStatus.value = 'STABLE';
-    console.log("Joined successfully:", room.sessionId);
-
-    room.onStateChange((state) => {
-      const me = state.players.get(room.sessionId);
-      if (me) {
-        myPlayer.value = { ...me };
-        const myShipData = state.ships.get(me.shipId);
-        if (myShipData) {
-          isDead.value = myShipData.isDead;
-          isDocked.value = myShipData.isDocked;
-        }
-      }
-
-      gameStatus.value = state.gameStatus;
-      winner.value = state.winner;
-      if (state.gameOverTime > 0) {
-        gameOverTimeLeft.value = Math.max(0, state.gameOverTime - state.serverTime);
-      }
-    });
-
-    room.onLeave((code) => {
-      console.log("Left sector with code:", code);
-      emit('leave');
-    });
-
-  } catch (e) {
-    console.error("Neural Link Error:", e);
-    connectionStatus.value = 'OFFLINE';
-    // Small delay so user can see the error status before being kicked back
-    setTimeout(() => {
-      emit('leave');
-    }, 1500);
-  }
-};
-
 const sketch = (p) => {
   p.disableFriendlyErrors = true; // Prevents FES from crashing in instance mode
 
@@ -336,29 +245,29 @@ const sketch = (p) => {
 
     const me = room.state.players.get(room.sessionId);
     if (!me) return;
-    
-    const myShip = room.state.ships.get(me.shipId);
-    if (!myShip) return;
+
+    const meShip = room.state.ships.get(me.shipId);
+    if (!meShip) return;
 
     handleInputs();
 
     const zoom = zoomLevels.value[currentZoomIndex.value] || 0.1;
-    const factionColor = getFactionColor(myShip.faction);
+    const factionColor = getFactionColor(meShip.faction);
 
     // --- APPLY CAMERA ---
     p.push();
     p.translate(p.width / 2, p.height / 2);
 
     // NEW: Rotate world so my ship always faces up
-    if (cameraRotationActive.value && myShip.value) {
-      p.rotate(-myShip.value.angle);
+    if (cameraRotationActive.value) {
+      p.rotate(-meShip.angle);
     }
 
     p.scale(zoom);
 
-    // Everything from here is in World Coordinates (translated so myShip is at screen center)
-    // We need to offset by -myShip position so myShip appears at (0,0) in our local camera space
-    p.translate(-myShip.x, -myShip.y);
+    // Everything from here is in World Coordinates (translated so meShip is at screen center)
+    // We need to offset by -meShip position so meShip appears at (0,0) in our local camera space
+    p.translate(-meShip.x, -meShip.y);
 
     // DRAW GRID
     const gridSpacing = 1000;
@@ -370,28 +279,28 @@ const sketch = (p) => {
     const viewHalfWidth = (p.width / 2) / zoom;
     const viewHalfHeight = (p.height / 2) / zoom;
 
-    const startX = Math.floor((myShip.x - viewHalfWidth) / gridSpacing) * gridSpacing;
-    const endX = Math.ceil((myShip.x + viewHalfWidth) / gridSpacing) * gridSpacing;
-    const startY = Math.floor((myShip.y - viewHalfHeight) / gridSpacing) * gridSpacing;
-    const endY = Math.ceil((myShip.y + viewHalfHeight) / gridSpacing) * gridSpacing;
+    const startX = Math.floor((meShip.x - viewHalfWidth) / gridSpacing) * gridSpacing;
+    const endX = Math.ceil((meShip.x + viewHalfWidth) / gridSpacing) * gridSpacing;
+    const startY = Math.floor((meShip.y - viewHalfHeight) / gridSpacing) * gridSpacing;
+    const endY = Math.ceil((meShip.y + viewHalfHeight) / gridSpacing) * gridSpacing;
 
     // Vertical lines
     for (let x = startX; x <= endX; x += gridSpacing) {
-      p.line(x, myShip.y - viewHalfHeight, x, myShip.y + viewHalfHeight);
+      p.line(x, meShip.y - viewHalfHeight, x, meShip.y + viewHalfHeight);
     }
 
     // Horizontal lines
     for (let y = startY; y <= endY; y += gridSpacing) {
-      p.line(myShip.x - viewHalfWidth, y, myShip.x + viewHalfWidth, y);
+      p.line(meShip.x - viewHalfWidth, y, meShip.x + viewHalfWidth, y);
     }
 
     // DRAW ASTEROIDS
     if (room.state.asteroidObjects) {
       room.state.asteroidObjects.forEach((asteroid) => {
-        if (asteroid.x + asteroid.radius < myShip.x - viewHalfWidth ||
-          asteroid.x - asteroid.radius > myShip.x + viewHalfWidth ||
-          asteroid.y + asteroid.radius < myShip.y - viewHalfHeight ||
-          asteroid.y - asteroid.radius > myShip.y + viewHalfHeight) {
+        if (asteroid.x + asteroid.radius < meShip.x - viewHalfWidth ||
+          asteroid.x - asteroid.radius > meShip.x + viewHalfWidth ||
+          asteroid.y + asteroid.radius < meShip.y - viewHalfHeight ||
+          asteroid.y - asteroid.radius > meShip.y + viewHalfHeight) {
           return;
         }
 
@@ -420,8 +329,8 @@ const sketch = (p) => {
       }
 
       const sColor = getFactionColor(station.faction);
-      const camAngle = cameraRotationActive.value ? -myShip.angle : 0;
-      entity.draw(p, zoom, sColor, myShip.targetId === station.id, room.state, camAngle);
+      const camAngle = cameraRotationActive.value ? -meShip.angle : 0;
+      entity.draw(p, zoom, sColor, meShip.targetId === station.id, room.state, camAngle);
     });
 
     // DRAW ALL SHIPS
@@ -435,10 +344,10 @@ const sketch = (p) => {
       }
 
       const pColor = getFactionColor(ship.faction);
-      const camAngle = cameraRotationActive.value ? -myShip.angle : 0;
+      const camAngle = cameraRotationActive.value ? -meShip.angle : 0;
       entity.draw(p, zoom, pColor, shipConfigs.value, allWeapons.value, room.state, camAngle);
 
-      if (myShip.targetId === ship.id) {
+      if (meShip.targetId === ship.id) {
         p.push();
         p.translate(ship.x, ship.y);
         p.stroke('#ff3b30');
@@ -462,7 +371,7 @@ const sketch = (p) => {
       const pColor = getFactionColor(proj.faction);
       entity.draw(p, zoom, pColor);
 
-      if (myShip.targetId === proj.id) {
+      if (myShip.value.targetId === proj.id) {
         p.push();
         p.translate(proj.x, proj.y);
         p.stroke('#ff3b30');
@@ -484,14 +393,14 @@ const sketch = (p) => {
     // --- UI HUD (Immersive Overlay) ---
     p.pop(); // Exit World/Camera space
 
-    const shipSpec = shipConfigs.value.find(s => s.id === myShip.shipClass);
+    const shipSpec = shipConfigs.value.find(s => s.id === myShip.value.shipClass);
 
     // DOCKING PROMPT
-    const homeStationId = `station_${myShip.faction}`;
+    const homeStationId = `station_${myShip.value.faction}`;
     const homeStation = room.state.stations.get(homeStationId);
     if (homeStation) {
-      const distToHome = Math.sqrt((homeStation.x - myShip.x) ** 2 + (homeStation.y - myShip.y) ** 2);
-      if (distToHome <= 1500 && !myShip.isDocked && !myShip.isDocking) {
+      const distToHome = Math.sqrt((homeStation.x - myShip.value.x) ** 2 + (homeStation.y - myShip.value.y) ** 2);
+      if (distToHome <= 1500 && !myShip.value.isDocked && !myShip.value.isDocking) {
         p.push();
         p.textAlign(p.CENTER, p.CENTER);
         p.textSize(20);
@@ -501,8 +410,8 @@ const sketch = (p) => {
       }
     }
 
-    if (myShip.isDocking) {
-      const elapsed = Date.now() - myShip.dockingStartTime;
+    if (myShip.value.isDocking) {
+      const elapsed = Date.now() - myShip.value.dockingStartTime;
       const progress = Math.min(1, elapsed / 5000);
 
       p.push();
@@ -518,7 +427,7 @@ const sketch = (p) => {
       p.pop();
     }
 
-    if (myShip.isDocked) {
+    if (myShip.value.isDocked) {
       p.push();
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(30);
@@ -570,8 +479,8 @@ const sketch = (p) => {
       p.noStroke();
       p.fill(255, 255, 255, 30);
       room.state.asteroidObjects.forEach((asteroid) => {
-        const dx = asteroid.x - myShip.x;
-        const dy = asteroid.y - myShip.y;
+        const dx = asteroid.x - myShip.value.x;
+        const dy = asteroid.y - myShip.value.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance <= radarRadius) {
           p.ellipse(dx * radarScale, dy * radarScale, Math.max(1, asteroid.radius * radarScale * 2));
@@ -596,20 +505,20 @@ const sketch = (p) => {
     // Draw Blips for all ships
     room.state.ships.forEach((ship) => {
       if (ship.isDead || ship.isDocked) return;
-      const dx = ship.x - myShip.x;
-      const dy = ship.y - myShip.y;
+      const dx = ship.x - myShip.value.x;
+      const dy = ship.y - myShip.value.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= radarRadius) {
         const blipX = dx * radarScale;
         const blipY = dy * radarScale;
-        const isSelf = ship.id === myShip.id;
+        const isSelf = ship.id === myShip.value.id;
         const pColor = getFactionColor(ship.faction);
 
         p.push();
         if (isSelf) {
           // Self indicator - Clearly visible triangle pointing in facing direction
-          p.rotate(myShip.angle || 0);
+          p.rotate(myShip.value.angle || 0);
           p.fill(255);
           p.noStroke();
           // Draw a sharp triangle pointing UP (negative Y)
@@ -625,7 +534,7 @@ const sketch = (p) => {
           p.ellipse(blipX, blipY, 5);
 
           // Add a faint glow for targets
-          if (myShip.targetId === ship.id) {
+          if (myShip.value.targetId === ship.id) {
             p.noFill();
             p.stroke(pColor);
             p.strokeWeight(1);
@@ -644,8 +553,8 @@ const sketch = (p) => {
     room.state.projectiles.forEach((proj) => {
       if (proj.type !== 'drone' && proj.type !== 'missile') return;
 
-      const dx = proj.x - myShip.x;
-      const dy = proj.y - myShip.y;
+      const dx = proj.x - myShip.value.x;
+      const dy = proj.y - myShip.value.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= radarRadius) {
@@ -658,7 +567,7 @@ const sketch = (p) => {
         p.noStroke();
         p.ellipse(blipX, blipY, 3); // Smaller than players
 
-        if (myShip.targetId === proj.id) {
+        if (myShip.value.targetId === proj.id) {
           p.noFill();
           p.stroke(pColor);
           p.strokeWeight(1);
@@ -672,12 +581,12 @@ const sketch = (p) => {
 
     // Draw Blips for Stations (with directional markers for bases)
     room.state.stations.forEach((station) => {
-      const dx = station.x - myShip.x;
-      const dy = station.y - myShip.y;
+      const dx = station.x - myShip.value.x;
+      const dy = station.y - myShip.value.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const angle = Math.atan2(dy, dx);
       const isBase = station.id.startsWith('station_');
-      const isHome = station.faction === myShip.faction;
+      const isHome = station.faction === myShip.value.faction;
       const sColor = getFactionColor(station.faction);
 
       if (distance <= radarRadius) {
@@ -698,7 +607,7 @@ const sketch = (p) => {
           p.text(isHome ? 'HOME' : 'BASE', blipX, blipY - 6);
         }
 
-        if (myShip.targetId === station.id) {
+        if (myShip.value.targetId === station.id) {
           p.noFill();
           p.stroke(sColor);
           p.strokeWeight(1);
@@ -742,7 +651,7 @@ const sketch = (p) => {
       p.rectMode(p.CENTER);
       p.rect(p.width / 2, p.height / 2, p.width, p.height);
 
-      const isWinner = room.state.winner === myShip.faction;
+      const isWinner = room.state.winner === myShip.value.faction;
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(80);
       p.textStyle(p.BOLD);
@@ -797,11 +706,40 @@ onMounted(async () => {
     fetchVersion()
   ]);
 
-  await connect();
 
-  if (gameContainer.value) {
-    p5Instance = new p5(sketch, gameContainer.value);
+  try {
+    room = await connect(props.roomId, props.faction, props.ship, props.token);
+  } catch (e) {
+    console.error("Neural Link Error:", e);
+    // Small delay so user can see the error status before being kicked back
+    setTimeout(() => {
+      emit('leave');
+    }, 1500);
   }
+  room ? connectionStatus.value = 'CONNECTED' : connectionStatus.value = 'OFFLINE';
+  room?.onLeave((code) => {
+    console.log("Left sector with code:", code);
+    emit('leave');
+  });
+  room?.onStateChange((state) => {
+    const me = state.players.get(room.sessionId);
+    if (me) {
+      myPlayer.value = { ...me };
+      const myShipData = state.ships.get(me.shipId);
+      if (myShipData) {
+        isDead.value = myShipData.isDead;
+        isDocked.value = myShipData.isDocked;
+      }
+    }
+    gameStatus.value = state.gameStatus;
+    winner.value = state.winner;
+    if (state.gameOverTime > 0) {
+      gameOverTimeLeft.value = Math.max(0, state.gameOverTime - state.serverTime);
+    }
+  });
+
+  p5Instance = new p5(sketch, gameContainer.value);
+
 });
 
 onUnmounted(() => {
@@ -813,81 +751,83 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="game-client-wrapper">
-    <!-- Main Game Canvas Container -->
-    <div ref="gameContainer" class="p5-canvas-container"></div>
 
-    <DebugHud 
-      :my-player="myPlayer"
-      :my-ship="myShip"
-      :connection-status="connectionStatus"
-      :game-version="gameVersion"
-      :current-zoom-index="currentZoomIndex"
-      :camera-rotation-active="cameraRotationActive"
-      :target-data="targetData"
-      :hull-pct="hullPct"
-      :armor-pct="armorPct"
-      :move-keys="moveKeys"
-    />
+  <div class="game-view">
+    <div class="game-header">
+      <span>Sector: {{ roomId }}</span>
+      <button @click="emit('leave')" class="btn-back">Main Menu</button>
+    </div>
+    <div id="game-canvas-container">
 
-    <!-- UI Overlays -->
-    <div class="game-ui-overlay">
-      <!-- Status Badge -->
-      <div v-if="connectionStatus !== 'CONNECTED'" class="status-overlay">
-        <div class="status-box">
-          <div class="status-spinner"></div>
-          {{ connectionStatus }}
+      <div class="game-client-wrapper">
+        <!-- Main Game Canvas Container -->
+        <div ref="gameContainer" class="p5-canvas-container"></div>
+
+        <DebugHud :my-player="myPlayer" :my-ship="myShip" :connection-status="connectionStatus"
+          :game-version="gameVersion" :current-zoom-index="currentZoomIndex"
+          :camera-rotation-active="cameraRotationActive" :target-data="targetData" :hull-pct="hullPct"
+          :armor-pct="armorPct" :move-keys="moveKeys" />
+
+        <!-- UI Overlays -->
+        <div class="game-ui-overlay">
+          <!-- Status Badge -->
+          <div v-if="connectionStatus !== 'CONNECTED'" class="status-overlay">
+            <div class="status-box">
+              <div class="status-spinner"></div>
+              {{ connectionStatus }}
+            </div>
+          </div>
+
+          <!-- Game Over UI -->
+          <transition name="fade">
+            <div v-if="gameStatus === 'gameover'" class="gameover-overlay">
+              <div class="gameover-card" :class="winner === props.faction ? 'victory' : 'defeat'">
+                <h1 v-if="winner === props.faction">VICTORY</h1>
+                <h1 v-else>DEFEAT</h1>
+                <p v-if="winner === props.faction">The station has been destroyed. Your faction is victorious!</p>
+                <p v-else>Your station has fallen. The sector is lost.</p>
+
+                <div class="countdown-section">
+                  <div class="countdown-label">RETURNING TO LOBBY IN</div>
+                  <div class="countdown-value">{{ Math.ceil(gameOverTimeLeft / 1000) }}s</div>
+                </div>
+
+                <button @click="emit('leave')" class="lobby-btn">RETURN TO LOBBY NOW</button>
+              </div>
+            </div>
+          </transition>
+
+          <!-- Death/Respawn UI -->
+          <transition name="fade">
+            <div v-if="isDead && gameStatus !== 'gameover'" class="respawn-overlay">
+              <div class="respawn-card">
+                <h2>SHIP DESTROYED</h2>
+                <p>Your vessel has been lost in action.</p>
+                <div class="respawn-stats">
+                  <!-- Optional: show session stats here -->
+                </div>
+                <button @click="sendRespawn" class="respawn-btn">CLONE & RESUPPLY</button>
+              </div>
+            </div>
+          </transition>
+
+          <!-- Leaving Countdown UI -->
+          <transition name="fade">
+            <div v-if="isLeaving" class="leaving-overlay">
+              <div class="leaving-card">
+                <h2>RETURNING TO BASE</h2>
+                <p>Your vessel is engaging warp drive for extraction.</p>
+                <div class="countdown-value">{{ leavingCountdown }}s</div>
+                <p class="warning">Neural link will terminate upon arrival.</p>
+              </div>
+            </div>
+          </transition>
+
+          <!-- Docking Menu (Abstracted) -->
+          <DockingMenu :is-docked="isDocked" :my-player="myPlayer" :ship-configs="shipConfigs" :all-weapons="allWeapons"
+            @undock="undock" @change-ship="changeShip" @buy-weapon="buyWeapon" @upgrade-weapon="upgradeWeapon" />
         </div>
       </div>
-
-      <!-- Game Over UI -->
-      <transition name="fade">
-        <div v-if="gameStatus === 'gameover'" class="gameover-overlay">
-          <div class="gameover-card" :class="winner === props.faction ? 'victory' : 'defeat'">
-            <h1 v-if="winner === props.faction">VICTORY</h1>
-            <h1 v-else>DEFEAT</h1>
-            <p v-if="winner === props.faction">The station has been destroyed. Your faction is victorious!</p>
-            <p v-else>Your station has fallen. The sector is lost.</p>
-            
-            <div class="countdown-section">
-              <div class="countdown-label">RETURNING TO LOBBY IN</div>
-              <div class="countdown-value">{{ Math.ceil(gameOverTimeLeft / 1000) }}s</div>
-            </div>
-            
-            <button @click="emit('leave')" class="lobby-btn">RETURN TO LOBBY NOW</button>
-          </div>
-        </div>
-      </transition>
-
-      <!-- Death/Respawn UI -->
-      <transition name="fade">
-        <div v-if="isDead && gameStatus !== 'gameover'" class="respawn-overlay">
-          <div class="respawn-card">
-            <h2>SHIP DESTROYED</h2>
-            <p>Your vessel has been lost in action.</p>
-            <div class="respawn-stats">
-              <!-- Optional: show session stats here -->
-            </div>
-            <button @click="sendRespawn" class="respawn-btn">CLONE & RESUPPLY</button>
-          </div>
-        </div>
-      </transition>
-
-      <!-- Leaving Countdown UI -->
-      <transition name="fade">
-        <div v-if="isLeaving" class="leaving-overlay">
-          <div class="leaving-card">
-            <h2>RETURNING TO BASE</h2>
-            <p>Your vessel is engaging warp drive for extraction.</p>
-            <div class="countdown-value">{{ leavingCountdown }}s</div>
-            <p class="warning">Neural link will terminate upon arrival.</p>
-          </div>
-        </div>
-      </transition>
-
-      <!-- Docking Menu (Abstracted) -->
-      <DockingMenu :is-docked="isDocked" :my-player="myPlayer" :ship-configs="shipConfigs" :all-weapons="allWeapons"
-        @undock="undock" @change-ship="changeShip" @buy-weapon="buyWeapon" @upgrade-weapon="upgradeWeapon" />
     </div>
   </div>
 </template>

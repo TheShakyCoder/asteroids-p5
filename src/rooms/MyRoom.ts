@@ -54,6 +54,10 @@ export class MyRoom extends Room {
         station.faction = f.id;
         station.x = f.spawn.x;
         station.y = f.spawn.y;
+        station.radius = 300;
+        station.maxHull = 40000;
+        station.hull = 40000;
+        station.armor = 100;
         station.droneNextWaveTime = Date.now(); // Start first wave immediately
         this.state.stations.set(station.id, station);
       }
@@ -73,6 +77,9 @@ export class MyRoom extends Room {
         
         // Random size between 50 and 500
         asteroid.radius = 50 + Math.random() * 450;
+        asteroid.maxHull = asteroid.radius * 2;
+        asteroid.hull = asteroid.maxHull;
+        asteroid.armor = asteroid.radius / 10;
         
         // Avoid spawning too close to bases (within 3000 units)
         let tooClose = false;
