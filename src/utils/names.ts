@@ -8,9 +8,19 @@ const nouns = [
     "Ranger", "Pilot", "Captain", "Voyager", "Seeker", "Hunter", "Ghost"
 ];
 
+const greekLetters = [
+    "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", 
+    "Iota", "Kappa", "Lambda", "Mu", "Nu", "Xi", "Omicron", "Pi", "Rho", 
+    "Sigma", "Tau", "Upsilon", "Phi", "Chi", "Psi", "Omega"
+];
+
 export function generateGuestName(): string {
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
     const num = Math.floor(Math.random() * 900) + 100; // 100-999
     return `${adj}-${noun}-${num}`;
+}
+
+export function generateRoomName(): string {
+    return greekLetters[Math.floor(Math.random() * greekLetters.length)];
 }

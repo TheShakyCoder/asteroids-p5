@@ -10,6 +10,8 @@ import { factions } from "../data/factions.js";
 import { ships } from "../data/ships.js";
 import { weapons } from "../data/weapons.js";
 import { calculateHit, rollHitChance } from "../utils/combat.js";
+import { generateGuestName, generateRoomName } from "../utils/names.js";
+import { sendVerificationEmail } from "../utils/mail.js";
 import jwt from "jsonwebtoken";
 
 export class MyRoom extends Room {
@@ -28,7 +30,7 @@ export class MyRoom extends Room {
   onCreate(options: any) {
     console.log("Room created with dimensions:", this.state.width, "x", this.state.height);
     this.setMetadata({ 
-      name: options.name || "Default Sector",
+      name: options.name || `Sector ${generateRoomName()}`,
       factionCounts: {} 
     });
 

@@ -13,7 +13,7 @@ import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 // import pool, { initDb } from "./utils/db.js";
-import { generateGuestName } from "./utils/names.js";
+import { generateGuestName, generateRoomName } from "./utils/names.js";
 import { sendVerificationEmail } from "./utils/mail.js";
 
 /**
@@ -207,21 +207,21 @@ const server = defineServer({
         // });
 
         // --- BOOTSTRAP INITIAL ROOM ---
-        // Ensuring a single global game sector exists
+        // Ensuring at least one game sector exists
         setTimeout(async () => {
             const rooms = await matchMaker.query({});
-            const hasSector1 = rooms.some(r => r.metadata && r.metadata.name === "Sector 1");
             
-            if (!hasSector1) {
-                console.log("Bootstrap: Initializing Sector 1...");
+            if (rooms.length === 0) {
+                const randomName = `Sector ${generateRoomName()}`;
+                console.log(`Bootstrap: Initializing ${randomName}...`);
                 try {
-                    await matchMaker.create("my_room", { name: "Sector 1" });
-                    console.log("Bootstrap: Sector 1 created.");
+                    await matchMaker.create("my_room", { name: randomName });
+                    console.log(`Bootstrap: ${randomName} created.`);
                 } catch (e) {
                     console.error("Bootstrap: Error creating room:", e);
                 }
             } else {
-                console.log("Bootstrap: Sector 1 already active.");
+                console.log("Bootstrap: Sectors already active.");
             }
         }, 1000);
     }
